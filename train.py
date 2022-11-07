@@ -37,8 +37,6 @@ def train(model, optimizer, loss_fn, dl):
         total_loss += loss.item() * predictions.shape[0]
         accuracy += torch.sum(torch.eq(predictions, labels)).item()
 
-        break
-
     return total_loss / n_objects, accuracy / n_objects
 
 
@@ -57,8 +55,6 @@ def test(model, loss_fn, dl):
             n_objects += predictions.shape[0]
             total_loss += loss.item() * predictions.shape[0]
             accuracy += torch.sum(torch.eq(predictions, labels)).item()
-
-            break
 
     return total_loss / n_objects, accuracy / n_objects
 
@@ -93,14 +89,14 @@ def main(args):
             'n_ssm': 2
         },
         dropout_fn=torch.nn.Dropout1d
-    )
+    ).to(device)
 
     print(model)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.01, weight_decay=0.05)
 
     all_losses_test, all_accuracies_test = [], []
     all_losses_train, all_accuracies_train = [], []
-    for epoch in tqdm.tqdm(range(args.epochs), total=args.epochsß):
+    for epoch in tqdm.tqdm(range(args.epochs), total=args.epochs):
         loss_train, accuracy_train = train(model, optimizer, loss_fn, dl_train)
 
         loss_train, accuracy_train = test(model, loss_fn, dl_train)
