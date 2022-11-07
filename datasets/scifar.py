@@ -15,4 +15,9 @@ class SequentialCIFAR10(torch.utils.data.Dataset):
         image, label = self.data[idx]
         if isinstance(image, PIL.Image.Image):
             image = torchvision.transforms.ToTensor()(image)
-        return image.reshape(-1), label
+
+        # Convert to shape [B, H, L]
+        return image.reshape(-1).unsqueeze(0), label
+
+    def __len__(self):
+        return len(self.data)
