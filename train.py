@@ -67,8 +67,8 @@ def main(args):
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
     os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
 
-    ds_test = SequentialCIFAR10(args.data_path, train=False, download=False)
-    ds_train = SequentialCIFAR10(args.data_path, train=True, download=False)
+    ds_test = SequentialCIFAR10(args.data_path, train=False, download=True)
+    ds_train = SequentialCIFAR10(args.data_path, train=True, download=True)
 
     dl_test = torch.utils.data.DataLoader(
         ds_test, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False
