@@ -1,3 +1,5 @@
+from typing import Callable
+
 import PIL.Image
 
 import torchvision
@@ -8,7 +10,14 @@ from torchvision.datasets import CIFAR10
 
 
 class SequentialCIFAR10(torch.utils.data.Dataset):
-    def __init__(self, root, train=True, transform=None, target_transform=None, download=False):
+    def __init__(
+            self,
+            root: str,
+            train: bool = True,
+            transform: Callable = None,
+            target_transform: Callable = None,
+            download: bool = False
+    ):
         self.data = CIFAR10(root, train, transform, target_transform, download)
 
     def __getitem__(self, idx):
@@ -16,8 +25,8 @@ class SequentialCIFAR10(torch.utils.data.Dataset):
         if isinstance(image, PIL.Image.Image):
             image = torchvision.transforms.ToTensor()(image)
 
-        # Convert to shape [B, H, L]
-        return image.reshape(image.shape[0], -1), label
+        # Convert to shape [WIDTH * HEIGHT, N_CHANNELS]
+        return image.reshape(-1, image.shape[0]), label
 
     def __len__(self):
         return len(self.data)
