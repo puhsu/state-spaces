@@ -1546,7 +1546,7 @@ class S4(nn.Module):
             k0, k1 = rearrange(k, '(s c) h l -> s c h l', s=2)
             k = F.pad(k0, (0, L)) \
                 + F.pad(k1.flip(-1), (L, 0)) \
- \
+
         k_f = torch.fft.rfft(k, n=L_kernel + L)  # (C H L)
         u_f = torch.fft.rfft(u, n=L_kernel + L)  # (B H L)
         y_f = contract('bhl,chl->bchl', u_f, k_f)

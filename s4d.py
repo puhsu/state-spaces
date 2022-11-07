@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 import opt_einsum as oe
 
-from src.models.nn import DropoutNd
+from components import DropoutNd
 
 _c2r = torch.view_as_real
 _r2c = torch.view_as_complex
