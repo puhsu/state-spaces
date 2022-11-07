@@ -5,7 +5,7 @@
   "command": "python train_lssm.py",
   "args": [
     "--batch-size=32",
-    "--dropout=0.2",
+    "--dropout=0.5",
     "--hidden-size=256",
     "--learning-rate=0.001",
     "--log-examples=20000",
