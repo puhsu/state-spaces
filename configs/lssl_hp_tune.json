@@ -1,0 +1,18 @@
+{
+  "output": "hp_tune.log",
+  "config_name": "hp-tuning",
+  "memory_needed": 40,
+  "command": "python train_lssm.py",
+  "args": [
+    ["--batch_size=32", "--batch_size=64", "--batch_size=256", "--batch_size=512"],
+    "--dropout=0.2",
+    "--hidden_size=256",
+    "--learning_rate=0.001",
+    ["--log_examples=5000", "--log_examples=10000", "--log_examples=20000", "--log_examples=50000"],
+    "--log_file=results.csv",
+    "--lr_drop_factor=0.5",
+    "--min_learning_rate=1e-07",
+    "--n_layers=4",
+    ["--patience=5", "--patience=7", "--patience=10"]
+  ]
+}

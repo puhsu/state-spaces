@@ -10,3 +10,4 @@ tensorboard
 torch
 torchvision
 tqdm
+opt_einsum
