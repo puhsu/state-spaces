@@ -1,10 +1,10 @@
 import json
-from copy import deepcopy
+import logging
+import pprint
 from dataclasses import field
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from pprint import pprint
 from typing import Dict, List, Callable, Optional
 
 import numpy as np
@@ -23,6 +23,24 @@ from model.lssl import StateSpace
 from model.s4_model import S4Model
 
 
+class TqdmLoggingHandler(logging.Handler):
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            tqdm.write(msg)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(TqdmLoggingHandler())
+
+
 class Dataset(str, Enum):
     CIFAR = 'cifar'
 
@@ -38,7 +56,7 @@ NUM_CATEGORIES = {Dataset.CIFAR: 10}
 class LSSMTrainingArguments:
     dataset: Dataset = field(default=Dataset.CIFAR, metadata={'help': 'Dataset to train on.'})
     split: float = field(default=0.8, metadata={'help': 'Train/val split of official train dataset if no val dataset is available.'})
-    batch_size: int = field(default=1, metadata={'help': 'Train batch size (eval batch size is doubled).'})
+    batch_size: int = field(default=64, metadata={'help': 'Train batch size (eval batch size is doubled).'})
 
     hidden_size: int = field(default=256, metadata={'help': 'Size of hidden data representations.'})
     n_layers: int = field(default=4, metadata={'help': 'Number of LSSM layers.'})
@@ -51,13 +69,13 @@ class LSSMTrainingArguments:
     target_metric: str = field(default='accuracy', metadata={'help': 'Set target metric for validation and choosing best model.'})
 
     comment: str = field(default='LSSM', metadata={'help': 'Tensorboard comment.'})
-    log_examples: int = field(default=10, metadata={'help': 'Log metrics every X examples seen.'})
+    log_examples: int = field(default=1000, metadata={'help': 'Log metrics every X examples seen.'})
     verbose: bool = field(default=True, metadata={'help': 'Print validation metrics during training.'})
     log_file: Path = field(default=Path('results.csv'), metadata={'help': 'File for logging run configs and final metrics.'})
 
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-print(f'Training on {DEVICE}')
+logger.info(f'Training on {DEVICE}')
 
 
 def compute_metrics(predictions: np.ndarray, gold_labels: np.ndarray) -> Dict[str, float]:
@@ -68,7 +86,7 @@ def log_metrics(writer: SummaryWriter, metrics: Dict[str, float], examples_seen,
     for metric_name, metric_value in metrics.items():
         writer.add_scalar(f'{prefix}_{metric_name}', metric_value, global_step=examples_seen)
         if verbose:
-            print(f'{prefix}_{metric_name}: {metric_value}')
+            logger.info(f'{prefix}_{metric_name}: {metric_value}')
 
 
 def validate(
@@ -109,8 +127,7 @@ def validate(
 if __name__ == '__main__':
     args: LSSMTrainingArguments = LSSMTrainingArguments.parse_args()
     run_args = {f'--{k}': v for k, v in args.__dict__.items()}
-    print('Run arguments:')
-    pprint(run_args)
+    logger.info(f'Run arguments:\n{pprint.pformat(run_args)}')
 
     # INIT DATASETS --
 
@@ -172,7 +189,7 @@ if __name__ == '__main__':
             log_loss += loss.item() * len(batch)
             examples_from_last_log += len(batch)
 
-            if not examples_seen % args.log_examples:
+            if examples_from_last_log > args.log_examples:
                 metrics = validate(model, val_dataloder, loss_fn, dataset_name='dev')
                 log_metrics(tb_writer, metrics, examples_seen=examples_seen, prefix='dev', verbose=args.verbose)
                 log_metrics(
