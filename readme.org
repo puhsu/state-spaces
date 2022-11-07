@@ -1,0 +1,15 @@
+#+title: State Space Models
+
+* Todos:
+
+** TODO Til Tuesday [0/2]
+DEADLINE: <2022-11-08 Tue>
+- [ ] Eexperiments (sanity checks)
+  On sequential cifar (reproduce table 1 from https://arxiv.org/abs/2110.13985)
+  - Train a Transformer
+  - Train LSSM
+  - Train S4
+- [ ] Papers
+  Talk trough:
+  - https://arxiv.org/abs/2110.13985
+  - https://arxiv.org/abs/2111.00396
