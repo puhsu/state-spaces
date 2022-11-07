@@ -56,7 +56,7 @@ NUM_CATEGORIES = {Dataset.CIFAR: 10}
 class LSSMTrainingArguments:
     dataset: Dataset = field(default=Dataset.CIFAR, metadata={'help': 'Dataset to train on.'})
     split: float = field(default=0.8, metadata={'help': 'Train/val split of official train dataset if no val dataset is available.'})
-    batch_size: int = field(default=64, metadata={'help': 'Train batch size (eval batch size is doubled).'})
+    batch_size: int = field(default=256, metadata={'help': 'Train batch size (eval batch size is doubled).'})
 
     hidden_size: int = field(default=256, metadata={'help': 'Size of hidden data representations.'})
     n_layers: int = field(default=4, metadata={'help': 'Number of LSSM layers.'})
@@ -69,7 +69,7 @@ class LSSMTrainingArguments:
     target_metric: str = field(default='accuracy', metadata={'help': 'Set target metric for validation and choosing best model.'})
 
     comment: str = field(default='LSSM', metadata={'help': 'Tensorboard comment.'})
-    log_examples: int = field(default=1000, metadata={'help': 'Log metrics every X examples seen.'})
+    log_examples: int = field(default=10000, metadata={'help': 'Log metrics every X examples seen.'})
     verbose: bool = field(default=True, metadata={'help': 'Print validation metrics during training.'})
     log_file: Path = field(default=Path('results.csv'), metadata={'help': 'File for logging run configs and final metrics.'})
 
