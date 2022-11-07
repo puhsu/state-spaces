@@ -271,10 +271,8 @@ class StateSpace(nn.Module):
 
         # convert to original format:
         # u: (L, B, H) or (length, batch, hidden)
+        u = u.transpose(-1, -2)
         u = u.transpose(0, 1)
-
-        if not self.transposed:
-            u = u.transpose(-1, -2)
 
         # We need to compute the convolution filter if first pass or length changes
         if self.k is None or u.shape[0] > self.k.shape[-1]:
@@ -293,10 +291,11 @@ class StateSpace(nn.Module):
         y = self.output_linear(y)  # (L, B, H)
 
         y = y.transpose(0, 1)
+        y = y.transpose(-1, -2)
 
         if not self.transposed:
             y = y.transpose(-1, -2)
-        return y
+        return y, None
 
     def linear_system_from_krylov(self, u, k):
         """

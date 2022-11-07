@@ -1,15 +1,18 @@
+import json
+from copy import deepcopy
 from dataclasses import field
 from enum import Enum
 from functools import partial
+from pathlib import Path
 from pprint import pprint
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Optional
 
 import numpy as np
 import torch
 from argparse_dataclass import dataclass
 from sklearn.metrics import accuracy_score
-from torch import Tensor
-from torch.nn import Module
+from torch import Tensor, LongTensor
+from torch.nn import Module, CrossEntropyLoss
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
@@ -35,7 +38,7 @@ NUM_CATEGORIES = {Dataset.CIFAR: 10}
 class LSSMTrainingArguments:
     dataset: Dataset = field(default=Dataset.CIFAR, metadata={'help': 'Dataset to train on.'})
     split: float = field(default=0.8, metadata={'help': 'Train/val split of official train dataset if no val dataset is available.'})
-    batch_size: int = field(default=64, metadata={'help': 'Train batch size (eval batch size is doubled).'})
+    batch_size: int = field(default=1, metadata={'help': 'Train batch size (eval batch size is doubled).'})
 
     hidden_size: int = field(default=256, metadata={'help': 'Size of hidden data representations.'})
     n_layers: int = field(default=4, metadata={'help': 'Number of LSSM layers.'})
@@ -48,23 +51,30 @@ class LSSMTrainingArguments:
     target_metric: str = field(default='accuracy', metadata={'help': 'Set target metric for validation and choosing best model.'})
 
     comment: str = field(default='LSSM', metadata={'help': 'Tensorboard comment.'})
-    log_examples: int = field(default=100, metadata={'help': 'Log metrics every X examples seen.'})
-    verbose: bool = field(default=False, metadata={'help': 'Print validation metrics during training.'})
+    log_examples: int = field(default=10, metadata={'help': 'Log metrics every X examples seen.'})
+    verbose: bool = field(default=True, metadata={'help': 'Print validation metrics during training.'})
+    log_file: Path = field(default=Path('results.csv'), metadata={'help': 'File for logging run configs and final metrics.'})
+
+
+DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+print(f'Training on {DEVICE}')
 
 
 def compute_metrics(predictions: np.ndarray, gold_labels: np.ndarray) -> Dict[str, float]:
     return {f'accuracy': accuracy_score(gold_labels, predictions)}
 
 
-def log_metrics(writer: SummaryWriter, metrics: Dict[str, float], examples_seen, *, prefix: str = '') -> None:
+def log_metrics(writer: SummaryWriter, metrics: Dict[str, float], examples_seen, *, prefix: str = '', verbose: bool = False) -> None:
     for metric_name, metric_value in metrics.items():
-        writer.add_scalar(metric_name, metric_value, global_step=examples_seen)
+        writer.add_scalar(f'{prefix}_{metric_name}', metric_value, global_step=examples_seen)
+        if verbose:
+            print(f'{prefix}_{metric_name}: {metric_value}')
 
 
 def validate(
         model: Module,
         dataloader: DataLoader,
-        loss_fn: Callable[[Tensor], Tensor],
+        loss_fn: Callable[[Tensor, LongTensor], Tensor],
         *,
         dataset_name: str = 'UNKNOWN'
 ) -> Dict[str, float]:
@@ -77,9 +87,9 @@ def validate(
     with torch.no_grad():
         total_loss = 0
 
-        for batch, labels in tqdm(dataloader, desc=f'Evaluating on {dataset_name} dataset'):
-            logits = model(batch)
-            loss = loss_fn(logits)
+        for batch, labels in tqdm(dataloader, desc=f'Evaluating on {dataset_name} dataset', leave=False):
+            logits = model(batch.to(DEVICE))
+            loss = loss_fn(logits, labels.to(DEVICE))
 
             total_loss += loss.item() * len(logits)
 
@@ -131,15 +141,74 @@ if __name__ == '__main__':
         n_layers=args.n_layers,
         dropout=args.dropout,
         block_class=StateSpace
-    )
+    ).to(DEVICE)
     optimizer = AdamW(params=model.parameters(), lr=args.learning_rate)
+    loss_fn = CrossEntropyLoss()
 
     curr_lr = args.learning_rate
+    patience = args.patience
+
     n_epoch = 0
+    examples_seen = 0
+    log_loss = 0
+    examples_from_last_log = 0
+
+    best_model_state = model.state_dict()
+    best_metric: Optional[float] = None
     while curr_lr > args.min_learning_rate:
         n_epoch += 1
-        for batch in tqdm(train_dataloder, desc=f'Training {n_epoch}'):
-            pass
+        for batch, labels in tqdm(train_dataloder, desc=f'Training {n_epoch} epoch', leave=True):
+            model.train()
 
+            optimizer.zero_grad()
+            logits = model(batch.to(DEVICE))
+            loss = loss_fn(logits, labels.to(DEVICE))
 
+            loss.backward()
+            optimizer.step()
+
+            examples_seen += len(batch)
+
+            log_loss += loss.item() * len(batch)
+            examples_from_last_log += len(batch)
+
+            if not examples_seen % args.log_examples:
+                metrics = validate(model, val_dataloder, loss_fn, dataset_name='dev')
+                log_metrics(tb_writer, metrics, examples_seen=examples_seen, prefix='dev', verbose=args.verbose)
+                log_metrics(
+                    tb_writer, {'lr': curr_lr, 'loss': log_loss / examples_from_last_log},
+                    examples_seen=examples_seen,
+                    prefix='train',
+                    verbose=args.verbose
+                )
+
+                log_loss = 0
+                examples_from_last_log = 0
+
+                metric = metrics[args.target_metric]
+                if best_metric is None or metric > best_metric:
+                    best_model_state = model.state_dict()
+                    best_metric = metric
+                    patience = args.patience
+                else:
+                    patience -= 1
+
+                if patience == 0:
+                    # drop lr
+                    model.load_state_dict(best_model_state)
+                    curr_lr *= args.lr_drop_factor
+                    for param_group in optimizer.param_groups:
+                        param_group['lr'] = curr_lr
+                    patience = args.patience
+
+    # EVALUATION
+
+    model.load_state_dict(best_model_state)
+
+    val_metrics = validate(model, val_dataloder, loss_fn, dataset_name='dev')
+    test_metrics = validate(model, test_dataloader, loss_fn, dataset_name='test')
+
+    with open(args.log_file, 'a') as f:
+        f.write(f'{json.dumps(run_args)},{json.dumps(val_metrics)},{json.dumps(test_metrics)},'
+                f'{val_metrics[args.target_metric]},{test_metrics[args.target_metric]}\n')
 
