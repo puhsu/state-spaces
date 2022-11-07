@@ -126,7 +126,7 @@ def validate(
 
 if __name__ == '__main__':
     args: LSSMTrainingArguments = LSSMTrainingArguments.parse_args()
-    run_args = {f'--{k}': v for k, v in args.__dict__.items()}
+    run_args = {f'--{k}': str(v) for k, v in args.__dict__.items()}
     logger.info(f'Run arguments:\n{pprint.pformat(run_args)}')
 
     # INIT DATASETS --
