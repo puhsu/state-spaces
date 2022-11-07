@@ -5,14 +5,14 @@
   "command": "python train_lssm.py",
   "args": [
     "--batch-size=32",
-    "--dropout=0.5",
-    "--hidden-size=256",
+    ["--dropout=0.1", "--dropout=0.2", "--dropout=0.3", "--dropout=0.4", "--dropout=0.5"],
+    ["--hidden-size=128", "--hidden-size=256", "--hidden-size=512", "--hidden-size=1024"],
     "--learning-rate=0.001",
     "--log-examples=20000",
     "--log-file=results.csv",
     "--lr-drop-factor=0.5",
     "--min-learning-rate=1e-07",
-    "--n-layers=4",
+    ["--n-layers=2", "--n-layers=3", "--n-layers=4", "--n-layers=5", "--n-layers=6"],
     "--patience=10"
   ]
 }
