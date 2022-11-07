@@ -1,0 +1,12 @@
+argparse-dataclass
+einops
+extensions
+numpy
+pytorch-lightning
+scikit-learn
+scipy
+sklearn
+tensorboard
+torch
+torchvision
+tqdm
