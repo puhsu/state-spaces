@@ -234,8 +234,12 @@ class StateSpace(nn.Module):
             dt_max=1e-1,
             channels=1,  # denoted by M below
             dropout=0.0,
+            transposed: bool = True,
+            **kwargs
     ):
         super().__init__()
+        self.transposed = transposed
+
         self.H = d
         self.N = order if order > 0 else d
 
@@ -260,11 +264,17 @@ class StateSpace(nn.Module):
 
         self.output_linear = nn.Linear(self.M * self.H, self.H)
 
-    def forward(self, u):  # absorbs return_output and transformer src mask
-        """
-        u: (L, B, H) or (length, batch, hidden)
-        Returns: (L, B, H)
-        """
+    def forward(self, u, **kwargs):  # absorbs return_output and transformer src mask
+        """ Input and output shape (B, H, L) """
+        if not self.transposed:
+            u = u.transpose(-1, -2)
+
+        # convert to original format:
+        # u: (L, B, H) or (length, batch, hidden)
+        u = u.transpose(0, 1)
+
+        if not self.transposed:
+            u = u.transpose(-1, -2)
 
         # We need to compute the convolution filter if first pass or length changes
         if self.k is None or u.shape[0] > self.k.shape[-1]:
@@ -281,6 +291,11 @@ class StateSpace(nn.Module):
         # Linear
         y = rearrange(y, 'l b h m -> l b (h m)')  # (L, B, H*M)
         y = self.output_linear(y)  # (L, B, H)
+
+        y = y.transpose(0, 1)
+
+        if not self.transposed:
+            y = y.transpose(-1, -2)
         return y
 
     def linear_system_from_krylov(self, u, k):

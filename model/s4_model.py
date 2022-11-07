@@ -1,4 +1,7 @@
+from typing import Callable, Any
+
 import torch.nn as nn
+from torch.nn import Module
 
 from .s4d import S4D
 
@@ -13,7 +16,7 @@ class S4Model(nn.Module):
         n_layers=4,
         dropout=0.2,
         prenorm=False,
-        block_class=S4D,
+        block_class: Callable[[int, Any], Module] = S4D,
         block_kwargs=None,
         dropout_fn=nn.Dropout1d
     ):
