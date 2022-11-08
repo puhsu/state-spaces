@@ -1,22 +1,35 @@
 import os
 import argparse
+from collections import defaultdict
+
+import regex
+
+import wandb
 
 import torch
 import torch.utils.data
 
 import tqdm.autonotebook as tqdm
 
-from model.s4 import S4
-from model.s4d import S4D
-from model.s4_model import S4Model
-from ss_datasets import SequentialCIFAR10
+from sequence_models.s4 import S4
+from sequence_models.utils import PassthroughSequential
+from sequence_models.pool import registry as pool_registry
+from sequence_models.residual import registry as residual_registry
+from sequence_models.model import SequenceModel, SequenceDecoder, SequenceModelWrapper
+
+from datasets import SequentialCIFAR10
 
 
-def train(model, optimizer, loss_fn, dl, device):
+class HashDict(dict):
+    def __hash__(self):
+        return hash(tuple(sorted(self.items())))
+
+
+def train(model, optimizer, scheduler, loss_fn, dl, device, epoch=-1, logger=None):
     model.train()
 
     n_objects, total_loss, accuracy = 0, 0.0, 0
-    for images, labels in tqdm.tqdm(dl, total=len(dl), leave=False):
+    for idx, (images, labels) in enumerate((pbar := tqdm.tqdm(dl, total=len(dl), leave=False))):
         optimizer.zero_grad()
 
         images = images.to(device=device)
@@ -30,6 +43,14 @@ def train(model, optimizer, loss_fn, dl, device):
         n_objects += predictions.shape[0]
         total_loss += loss.item() * predictions.shape[0]
         accuracy += torch.sum(torch.eq(predictions, labels)).item()
+
+        scheduler.step()
+        if logger is not None:
+            for p_idx, p_lr in enumerate(scheduler.get_last_lr()):
+                logger.log({f'lr/pg{p_idx}': p_lr}, step=epoch * len(dl) + idx)
+            logger.log({'running_loss/train': total_loss / n_objects}, step=epoch * len(dl) + idx)
+            logger.log({'running_accuracy/train': accuracy / n_objects}, step=epoch * len(dl) + idx)
+        pbar.set_description('Loss: {0:.3f}. Accuracy: {1:.3f}'.format(total_loss / n_objects, accuracy / n_objects))
 
     return total_loss / n_objects, accuracy / n_objects
 
@@ -74,45 +95,126 @@ def main(args):
     )
 
     loss_fn = torch.nn.CrossEntropyLoss(reduction='mean')
+    model_kwargs = {
+        'd_model': 512,
+        'n_layers': 6,
+        'transposed': False,
+        'dropout': 0.25,
+        'tie_dropout': True,
+        'prenorm': False,
+        'n_repeat': 1,
+        'layer': {
+            'class': S4,
+            'd_state': 64,
+            'l_max': None,
+            'channels': 1,
+            'bidirectional': True,
+            'activation': 'gelu',
+            'postact': 'glu',
+            'initializer': None,
+            'weight_norm': False,
+            'hyper_act': None,
+            'dropout': 0.0, 'tie_dropout': True,
+            'bottleneck': None,
+            'gate': None,
+            'transposed': True,
 
-    # model = S4Model(
-    #     d_input=3,
-    #     d_output=len(ds_train.data.classes),
-    #     d_model=1024,
-    #     n_layers=6,
-    #     dropout=0.25,
-    #     prenorm=False,
-    #     block_class=S4,
-    #     block_kwargs={
-    #         'bidirectional': True, 'postact': 'glu', 'tie_dropout': True,
-    #         # 'mode': 'diag', 'measure': 'diag-lin', 'disc': 'zoh', 'real_type': 'exp',
-    #         'n_ssm': 2
-    #     },
-    #     dropout_fn=torch.nn.Dropout1d
-    # ).to(device)
-    model = S4Model(
-        d_input=3,
-        d_output=len(ds_train.data.classes),
-        d_model=128,
-        n_layers=4,
-        dropout=0.1,
-        prenorm=False,
-        block_class=S4D,
-        block_kwargs={
-            # 'bidirectional': True, 'postact': 'glu', 'tie_dropout': True,
-            # 'mode': 'diag', 'measure': 'diag-lin', 'disc': 'zoh', 'real_type': 'exp',
-            # 'n_ssm': 2
+            # SSKernel arguments
+            'measure': 'legs',
+            'rank': 1,
+            'dt_min': 0.001,
+            'dt_max': 0.1,
+            'deterministic': False,
+            'lr': 0.001,
+            'mode': 'nplr',
+            'n_ssm': 2,
+
+            # SSKernelNPLR:
+            # keops=False,
+            # real_type='exp',  # ['none' | 'exp' | 'relu' | sigmoid']
+            # real_tolerance=1e-3,
+            # bandlimit=None,
+
+            # SSKernelDiag:
+            # disc='bilinear',
+            # real_type='exp',
+            # bandlimit=None,
         },
-        dropout_fn=torch.nn.Dropout1d
+        'residual': {
+            'class': residual_registry['R'],
+        },
+        'norm': 'layer',
+        'pool': {
+            'class': pool_registry['pool'],
+            'expand': None,
+            'stride': 1
+        },
+        'track_norms': True,
+        'dropinp': 0.0,
+    }
+    encoder_kwargs = {
+        'in_features': 3,
+        'out_features': model_kwargs['d_model'],
+    }
+    decoder_kwargs = {
+        # 'in_features': model_kwargs['d_model'],
+        # 'out_features': len(ds_train.data.classes),
+        'l_output': 0,
+        'd_model': model_kwargs['d_model'],
+        'd_output': len(ds_train.data.classes),
+    }
+
+    model = SequenceModelWrapper(
+        PassthroughSequential(torch.nn.Linear(**encoder_kwargs)),
+        PassthroughSequential(SequenceDecoder(**decoder_kwargs)),
+        SequenceModel(**model_kwargs),
     ).to(device)
 
+    # Pick output directory.
+    base_dir, dataset_name = './training-runs', 'scifar'
+    prev_run_dirs = []
+    if os.path.isdir(base_dir):
+        prev_run_dirs = [
+            x for x in os.listdir(base_dir)
+            if os.path.isdir(os.path.join(base_dir, x))
+        ]
+    prev_run_ids = [regex.match(rf'^\d+', x) for x in prev_run_dirs]
+    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+    cur_run_id = max(prev_run_ids, default=-1) + 1
+    exp_name = '{0}-{1:0>5d}-lr{2}_nws{3}_wd{4}_ep{5}_bs{6}'.format(
+        dataset_name, cur_run_id, args.lr, args.num_warmup_steps, args.wd, args.epochs, args.batch_size
+    )
+
+    log_dir = os.path.join(base_dir, exp_name)
+    os.makedirs(log_dir, exist_ok=True)
+    w_logger = wandb.init(
+        dir=log_dir, project='s4', name=exp_name, config={
+            'args': args, 'model': model_kwargs, 'encoder': encoder_kwargs, 'decoder': decoder_kwargs
+        }
+    )
+
+    params_groups = defaultdict(list)
+    for parameter in model.parameters():
+        opt_params = (
+            getattr(parameter, '_optim') if
+            hasattr(parameter, '_optim') else
+            {'lr': args.lr, 'weight_decay': args.wd}
+        )
+        params_groups[HashDict(opt_params)].append(parameter)
+    params_groups = [key | {'params': value} for key, value in params_groups.items()]
+    lr_lambda = (
+        lambda step: (step + 1) / (args.num_warmup_steps + 1) if step < args.num_warmup_steps else 1.0
+    )
+
     print(model)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd)
+    print('Number of trainable parameters:', sum(param.numel() for param in model.parameters() if param.requires_grad))
+    optimizer = torch.optim.AdamW(params_groups, lr=args.lr, weight_decay=args.wd)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda, last_epoch=-1, verbose=False)
 
     all_losses_test, all_accuracies_test = [], []
     all_losses_train, all_accuracies_train = [], []
     for epoch in tqdm.tqdm(range(args.epochs), total=args.epochs):
-        _, _ = train(model, optimizer, loss_fn, dl_train, device=device)
+        _, _ = train(model, optimizer, scheduler, loss_fn, dl_train, device=device, logger=w_logger, epoch=epoch)
 
         loss_train, accuracy_train = test(model, loss_fn, dl_train, device=device)
         loss_test, accuracy_test = test(model, loss_fn, dl_test, device=device)
@@ -125,6 +227,12 @@ def main(args):
         print('Epoch: {0:d}. Loss: {1:.3f}/{2:.3f}. Accuracy: {3:.3f}/{4:.3f}'.format(
             epoch, all_losses_train[-1], all_losses_test[-1], all_accuracies_train[-1], all_accuracies_test[-1]
         ))
+        w_logger.log({
+            'loss-test': all_losses_test[-1],
+            'loss-train': all_losses_train[-1],
+            'accuracy-test': all_accuracies_test[-1],
+            'accuracy-train': all_accuracies_train[-1]
+        }, step=epoch * len(dl_train), commit=True)
 
 
 if __name__ == '__main__':
@@ -153,22 +261,28 @@ if __name__ == '__main__':
     parser.add_argument(
         "--num_workers",
         type=int,
-        default=3,
+        default=4,
         metavar="N",
-        help="number of workers (default: 3)",
+        help="number of workers (default: 4)",
     )
     parser.add_argument(
         "--epochs",
         type=int,
-        default=101,
+        default=200,
         metavar="N",
-        help="number of epochs to train (default: 101)",
+        help="number of epochs to train (default: 200)",
     )
     parser.add_argument(
         "--lr",
         type=float,
         default=0.01,
         help="Learning rate (default: 0.01)",
+    )
+    parser.add_argument(
+        "--num-warmup-steps",
+        type=int,
+        default=1000,
+        help="number of steps to warmup lr (default: 1000)",
     )
     parser.add_argument(
         "--wd",

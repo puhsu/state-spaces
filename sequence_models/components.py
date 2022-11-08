@@ -176,6 +176,61 @@ class TransposedLN(nn.Module):
         return y
 
 
+def stochastic_depth(input: torch.tensor, p: float, mode: str, training: bool = True):
+    """
+    Implements the Stochastic Depth from `"Deep Networks with Stochastic Depth"
+    <https://arxiv.org/abs/1603.09382>`_ used for randomly dropping residual
+    branches of residual architectures.
+    Args:
+        input (Tensor[N, ...]): The input tensor or arbitrary dimensions with the first one
+                    being its batch i.e. a batch with ``N`` rows.
+        p (float): probability of the input to be zeroed.
+        mode (str): ``"batch"`` or ``"row"``.
+                    ``"batch"`` randomly zeroes the entire input, ``"row"`` zeroes
+                    randomly selected rows from the batch.
+        training: apply stochastic depth if is ``True``. Default: ``True``
+    Returns:
+        Tensor[N, ...]: The randomly zeroed tensor.
+    """
+    if p < 0.0 or p > 1.0:
+        raise ValueError("drop probability has to be between 0 and 1, but got {}".format(p))
+    if mode not in ["batch", "row"]:
+        raise ValueError("mode has to be either 'batch' or 'row', but got {}".format(mode))
+    if not training or p == 0.0:
+        return input
+
+    survival_rate = 1.0 - p
+    if mode == "row":
+        size = [input.shape[0]] + [1] * (input.ndim - 1)
+    else:
+        size = [1] * input.ndim
+    noise = torch.empty(size, dtype=input.dtype, device=input.device)
+    noise = noise.bernoulli_(survival_rate).div_(survival_rate)
+    return input * noise
+
+
+class StochasticDepth(nn.Module):
+    """
+    See :func:`stochastic_depth`.
+    """
+    def __init__(self, p: float, mode: str) -> None:
+        # TODO(karan): need to upgrade to torchvision==0.11.0 to use StochasticDepth directly
+        # from torchvision.ops import StochasticDepth
+        super().__init__()
+        self.p = p
+        self.mode = mode
+
+    def forward(self, input):
+        return stochastic_depth(input, self.p, self.mode, self.training)
+
+    def __repr__(self) -> str:
+        tmpstr = self.__class__.__name__ + '('
+        tmpstr += 'p=' + str(self.p)
+        tmpstr += ', mode=' + str(self.mode)
+        tmpstr += ')'
+        return
+
+
 class DropoutNd(nn.Module):
     def __init__(self, p: float = 0.5, tie=True, transposed=True):
         """
@@ -201,3 +256,67 @@ class DropoutNd(nn.Module):
             if not self.transposed: X = rearrange(X, 'b ... d -> b d ...')
             return X
         return X
+
+
+class Normalization(nn.Module):
+    def __init__(
+        self,
+        d,
+        transposed=False, # Length dimension is -1 or -2
+        _name_='layer',
+        **kwargs
+    ):
+        super().__init__()
+        self.transposed = transposed
+        self._name_ = _name_
+
+        if _name_ == 'layer':
+            self.channel = True # Normalize over channel dimension
+            if self.transposed:
+                self.norm = TransposedLN(d, **kwargs)
+            else:
+                self.norm = nn.LayerNorm(d, **kwargs)
+        elif _name_ == 'instance':
+            self.channel = False
+            norm_args = {'affine': False, 'track_running_stats': False}
+            norm_args.update(kwargs)
+            self.norm = nn.InstanceNorm1d(d, **norm_args) # (True, True) performs very poorly
+        elif _name_ == 'batch':
+            self.channel = False
+            norm_args = {'affine': True, 'track_running_stats': True}
+            norm_args.update(kwargs)
+            self.norm = nn.BatchNorm1d(d, **norm_args)
+        elif _name_ == 'group':
+            self.channel = False
+            self.norm = nn.GroupNorm(1, d, *kwargs)
+        elif _name_ == 'none':
+            self.channel = True
+            self.norm = nn.Identity()
+        else: raise NotImplementedError
+
+    def forward(self, x):
+        # Handle higher dimension logic
+        shape = x.shape
+        if self.transposed:
+            x = rearrange(x, 'b d ... -> b d (...)')
+        else:
+            x = rearrange(x, 'b ... d -> b (...)d ')
+
+        # The cases of LayerNorm / no normalization are automatically handled in all cases
+        # Instance/Batch Norm work automatically with transposed axes
+        if self.channel or self.transposed:
+            x = self.norm(x)
+        else:
+            x = x.transpose(-1, -2)
+            x = self.norm(x)
+            x = x.transpose(-1, -2)
+
+        x = x.view(shape)
+        return x
+
+    def step(self, x, **kwargs):
+        assert self._name_ in ["layer", "none"]
+        if self.transposed: x = x.unsqueeze(-1)
+        x = self.forward(x)
+        if self.transposed: x = x.squeeze(-1)
+        return

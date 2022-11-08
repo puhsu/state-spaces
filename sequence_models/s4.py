@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from einops import rearrange
 import opt_einsum as oe
 
-from sequence_models.base import SequenceModule
+from .base import SequenceModule
 
 optimized = True
 
@@ -13,8 +13,8 @@ if optimized:
 else:
     contract = torch.einsum
 
-from sequence_models.kernel import SSKernel
-from sequence_models.components import LinearActivation, Activation, DropoutNd
+from .kernel import SSKernel
+from .components import LinearActivation, Activation, DropoutNd
 
 
 class S4(SequenceModule):
@@ -40,7 +40,7 @@ class S4(SequenceModule):
             linear=False,
             # SSM Kernel arguments
             **kernel_args,
-        ):
+    ):
         """
         d_state: the dimension of the state, also denoted by N
         l_max: the maximum kernel length, also denoted by L. Set l_max=None to always use a global kernel
@@ -128,7 +128,6 @@ class S4(SequenceModule):
         if self.bidirectional:
             channels *= 2
 
-
         # SSM Kernel
         self.kernel = SSKernel(self.H, N=self.N, L=self.L, channels=channels, verbose=verbose, **kernel_args)
 
@@ -141,8 +140,8 @@ class S4(SequenceModule):
         # position-wise output transform to mix features
         if not self.linear:
             self.output_linear = LinearActivation(
-                self.H*self.channels,
-                self.d_model*(1 if self.gate is None else self.gate),
+                self.H * self.channels,
+                self.d_model * (1 if self.gate is None else self.gate),
                 transposed=self.transposed,
                 initializer=initializer,
                 activation=postact,
@@ -150,9 +149,8 @@ class S4(SequenceModule):
                 weight_norm=weight_norm,
             )
 
-
-
-    def forward(self, u, state=None, rate=1.0, lengths=None, **kwargs): # absorbs return_output and transformer src mask
+    def forward(self, u, state=None, rate=1.0, lengths=None,
+                **kwargs):  # absorbs return_output and transformer src mask
         """
         u: (B H L) if self.transposed else (B L H)
         state: (H N) never needed unless you know what you're doing
@@ -180,27 +178,25 @@ class S4(SequenceModule):
 
         # Compute SS Kernel
         L_kernel = L if self.L is None else min(L, round(self.L / rate))
-        k, k_state = self.kernel(L=L_kernel, rate=rate, state=state) # (C H L) (B C H L)
+        k, k_state = self.kernel(L=L_kernel, rate=rate, state=state)  # (C H L) (B C H L)
 
         # Convolution
         if self.bidirectional:
             k0, k1 = rearrange(k, '(s c) h l -> s c h l', s=2)
             k = F.pad(k0, (0, L)) \
-                    + F.pad(k1.flip(-1), (L, 0)) \
+                + F.pad(k1.flip(-1), (L, 0)) \
 
         if self.shift:
             # Try flip and pad to correct for potential off-by-one
-            k_f = torch.fft.rfft(F.pad(k.flip(-1), (L, 0)), n=2*L) # (C H L)
-            u_f = torch.fft.rfft(F.pad(u.flip(-1), (L, 0)), n=2*L) # (B H L)
-            y_f = contract('bhl,chl->bchl', u_f, k_f) # k_f.unsqueeze(-4) * u_f.unsqueeze(-3) # (B C H L)
-            y = torch.fft.irfft(y_f, n=L_kernel+L)[..., L:].flip(-1) # (B C H L)
+            k_f = torch.fft.rfft(F.pad(k.flip(-1), (L, 0)), n=2 * L)  # (C H L)
+            u_f = torch.fft.rfft(F.pad(u.flip(-1), (L, 0)), n=2 * L)  # (B H L)
+            y_f = contract('bhl,chl->bchl', u_f, k_f)  # k_f.unsqueeze(-4) * u_f.unsqueeze(-3) # (B C H L)
+            y = torch.fft.irfft(y_f, n=L_kernel + L)[..., L:].flip(-1)  # (B C H L)
         else:
-            k_f = torch.fft.rfft(k, n=L_kernel+L) # (C H L)
-            u_f = torch.fft.rfft(u, n=L_kernel+L) # (B H L)
+            k_f = torch.fft.rfft(k, n=L_kernel + L)  # (C H L)
+            u_f = torch.fft.rfft(u, n=L_kernel + L)  # (B H L)
             y_f = contract('bhl,chl->bchl', u_f, k_f)
-            y = torch.fft.irfft(y_f, n=L_kernel+L)[..., :L] # (B C H L)
-
-
+            y = torch.fft.irfft(y_f, n=L_kernel + L)[..., :L]  # (B C H L)
 
         # Compute D term in state space equation - essentially a skip connection
         y = y + contract('bhl,ch->bchl', u, self.D)
@@ -208,7 +204,7 @@ class S4(SequenceModule):
         # Compute state update
         if state is not None:
             assert not self.bidirectional, "Bidirectional not supported with state forwarding"
-            y = y + k_state #
+            y = y + k_state  #
             next_state = self.kernel.forward_state(u, state)
         else:
             next_state = None
@@ -245,7 +241,7 @@ class S4(SequenceModule):
         """
         assert not self.training
 
-        y, next_state = self.kernel.step(u, state) # (B C H)
+        y, next_state = self.kernel.step(u, state)  # (B C H)
         y = y + u.unsqueeze(-2) * self.D
         y = rearrange(y, 'b c h -> b (c h)')
         y = self.activation(y)

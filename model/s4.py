@@ -445,7 +445,7 @@ def nplr(measure, N, rank=1, dtype=torch.float, diagonalize_precision=True):
         V[1, -1] = 2 ** -0.5 * 1j
 
     _AP = V @ torch.diag_embed(w) @ V.conj().transpose(-1, -2)
-    if ((err := torch.sum((2 * _AP.real - AP) ** 2) / N) > 1e-5):
+    if (err := torch.sum((2 * _AP.real - AP) ** 2) / N) > 1e-5:
         print("Warning: Diagonalization of A matrix not numerically precise - error", err)
     # print("check", V @ torch.diag_embed(w) @ V.conj().transpose(-1, -2))
 
