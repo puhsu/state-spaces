@@ -5,7 +5,7 @@ from dataclasses import field
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Callable, Optional
+from typing import Dict, List, Callable, Optional, Tuple, Any
 
 import numpy as np
 import torch
@@ -21,6 +21,9 @@ from tqdm import tqdm
 from datasets import SequentialCIFAR10
 from model.lssl import StateSpace
 from model.s4_model import S4Model
+from sequence_models.base import SequenceModule
+from sequence_models.lssl import LSSL
+from sequence_models.s4 import S4
 
 
 class TqdmLoggingHandler(logging.Handler):
@@ -58,6 +61,7 @@ class LSSMTrainingArguments:
     split: float = field(default=0.8, metadata={'help': 'Train/val split of official train dataset if no val dataset is available.'})
     batch_size: int = field(default=256, metadata={'help': 'Train batch size (eval batch size is doubled).'})
 
+    sequence_module: str = field(default='lssl', metadata={'help': 'Sequence module block type (lssl or s4)'})
     hidden_size: int = field(default=256, metadata={'help': 'Size of hidden data representations.'})
     n_layers: int = field(default=4, metadata={'help': 'Number of LSSL layers.'})
     dropout: float = field(default=0.2, metadata={'help': 'Dropout probability.'})
@@ -125,6 +129,20 @@ def validate(
     return metrics
 
 
+def init_block_params(args: LSSMTrainingArguments) -> Tuple[SequenceModule, Dict[str, Any]]:
+    if args.sequence_module == 'lssl':
+        return LSSL, {
+            'channels': args.channels,
+            'learn': args.lssl_learn
+        }
+    elif args.sequence_module == 's4':
+        return S4, {
+            'channels': args.channels
+        }
+    else:
+        raise NotImplementedError
+
+
 if __name__ == '__main__':
     args: LSSMTrainingArguments = LSSMTrainingArguments.parse_args()
     run_args = {f'--{k}': str(v) for k, v in args.__dict__.items()}
@@ -153,13 +171,15 @@ if __name__ == '__main__':
 
     tb_writer = SummaryWriter(comment=args.comment)
 
+    block_class, block_args = init_block_params(args)
+
     model = S4Model(
         d_input=NUM_FEATURES[args.dataset],
         d_model=args.hidden_size,
         n_layers=args.n_layers,
         dropout=args.dropout,
-        block_class=StateSpace,
-        block_kwargs={'channels': args.channels}
+        block_class=block_class,
+        block_kwargs=block_args
     ).to(DEVICE)
     optimizer = AdamW(params=model.parameters(), lr=args.learning_rate)
     loss_fn = CrossEntropyLoss()
