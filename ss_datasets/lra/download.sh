@@ -1,1 +1,1 @@
-curl https://storage.googleapis.com/long-range-arena/lra_release.gz -o data
+wget -c https://storage.googleapis.com/long-range-arena/lra_release.gz -O - | tar -xz
