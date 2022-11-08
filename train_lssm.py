@@ -66,6 +66,7 @@ class LSSMTrainingArguments:
     n_layers: int = field(default=4, metadata={'help': 'Number of LSSL layers.'})
     dropout: float = field(default=0.2, metadata={'help': 'Dropout probability.'})
     channels: int = field(default=4, metadata={'help': 'Number of channels for LSSL layers.'})
+    lssl_learn: int = field(default=1, metadata={'help': 'Learn mode (only for LSSL): 0, 1 or 2.'})
 
     learning_rate: float = field(default=1e-3, metadata={'help': 'Learning rate for training loop.'})
     patience: int = field(default=5, metadata={'help': 'Patience before lr drop.'})

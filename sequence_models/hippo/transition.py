@@ -5,25 +5,13 @@ Note that these modules were heavily used in LSSL, but is no longed needed for S
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from scipy import special as ss
 from einops import rearrange
 
 from sequence_models.hippo.hippo import transition
 from sequence_models.functional import causal_convolution, construct_toeplitz
 
-# TODO figure out if we actually need this
-try:
-    from extensions.legt.legt import legt_gbt_forward, legt_gbt_backward, legt_gbt_forward_t, legt_gbt_backward_t
-except:
-    pass
-
-try:
-    from extensions.trid.trid import trid_gbt_forward, trid_gbt_backward, trid_solve
-except:
-    pass
-# from pytorch_memlab import profile
-
+import numpy as np
+from scipy import special as ss
 
 class AdaptiveTransition(nn.Module):
     def __init__(self, N, params, trainable=False, lr=1.0, batch=()):
@@ -407,39 +395,40 @@ class TLagTCumsumAdaptiveTransition(CumsumAdaptiveTransition):
         # print(f"LagTCumsumAdaptiveTransition:\n  A {self.A}\nB {self.B}")
 
 
-class GLagTCumsumAdaptiveTransition(CumsumAdaptiveTransition):
-    measure = 'glagt'
-    def __init__(self, N, alpha=0.0, beta=0.01):
-        # TODO this is completely broken
-        raise NotImplementedError
-        # super().__init__(N, -(1.-beta)/2, beta)
+class ToeplitzAdaptiveTransition(AdaptiveTransition):
+    """ NOTE stores matrix for x' = -Ax + Bu instead of x' = Ax + Bu """
 
-        # print(f"GLagTCumsumAdaptiveTransition:\n  A {self.A}\nB {self.B}")
+    def __init__(self, N, a, b, c, **kwargs):
+        """ Implements update for lower triangular Toeplitz transitions A.
+        a: represents the diagonals of a lower triangular Toeplitz transition matrix
+        b: B transition matrix
+        c: scaling factors
+        A = c a c^{-1}, B = c b (note that c represents \Lambda^{-1} in the HiPPO paper)
+        """
+        super().__init__(N, {'a': a, 'c': c, 'b': b}, **kwargs)
+        e = torch.zeros(N)
+        e[0] = 1.0
+        self.register_buffer('e', e) # for convenience
 
 
-class LegTAdaptiveTransition(AdaptiveTransition):
-    def __init__(self, N): # this class is not trainable
-        A, B = transition('legt', N)
-        A = torch.as_tensor(A, dtype=torch.float)
-        B = torch.as_tensor(B, dtype=torch.float)[:, 0]
-        super().__init__(N, {'a': A, 'b': B})
 
-    def _A(self):
-        return self.a
+    def _A(self): # TODO do this for all classes? how to know when to cache A or not?
+        # Z = torch.diag_embed(torch.ones(self.N-1), -1).to(self.a)
+        # [21-09-14 TODO] changed the krylov construction but haven't tested
+        # Z = torch.diag_embed(self.ones[:-1], -1)
+        # A = krylov(self.N, Z, self.a) # TODO use toeplitz.toeplitz_krylov_fast instead
+        A = construct_toeplitz(self.a)
+        A = A.transpose(0, 1)
+        A = self.c.unsqueeze(-1) * A * self.c.reciprocal()
+        return A
 
+    # @property
     def _B(self):
-        return self.b
+        return self.c * self.b
 
-    def forward_mult(self, u, delta, transpose=False):
-        if transpose: return legt_gbt_forward_t(delta, u, transpose=True) # TODO this is all broken
-        else: return legt_gbt_forward(delta, u)
+    # TODO do we need the gbt_A() and gbt_B() methods to materialize the GBT matrices faster?
 
-    def inverse_mult(self, u, delta, transpose=False):
-        if transpose: return legt_gbt_backward_t(-delta, u, transpose=True)
-        else: return legt_gbt_backward(-delta, u)
-
-    def quadratic(self, x, y):
-        # TODO should use fast mult... also check if we even need this anymore
+    def quadratic(self, x, y): # TODO need this? also, move to main superclass
         """
         x : (..., N)
         y : (..., N)
@@ -447,261 +436,53 @@ class LegTAdaptiveTransition(AdaptiveTransition):
         """
         return torch.sum((self.A @ y.unsqueeze(-1)).squeeze(-1) * x, dim=-1)
 
-class TriDInverseAdaptiveTransition(AdaptiveTransition):
-    """ NOTE stores matrix for x' = -Ax + Bu instead of x' = Ax + Bu """
-
-    def __init__(self, N, dl, d, du, pl, pr, c, b, **kwargs):
-        params = {
-            'dl': dl,
-            'd': d,
-            'du': du,
-            'pl': pl,
-            'pr': pr,
-            'c': c,
-            'b': b,
-        }
-        super().__init__(N, params, **kwargs)
-    def _A(self):
-        """ The matrix A for system x' = -Ax + Bu """
-        A = trid_solve(self.I, self.dl, self.d, self.du).transpose(-1, -2)
-        A = A + self.c*self.I
-        A = self.pl.unsqueeze(-1) * A * self.pr
-        return A
-
-    def _B(self):
-        return self.pl * self.b
+    def _mult(self, t, u, transpose):
+        if transpose:
+            x = self.c * u
+            x = causal_convolution(t, x.flip(-1)).flip(-1)
+            x = self.c.reciprocal() * x
+        else:
+            x = self.c.reciprocal() * u
+            x = causal_convolution(t, x)
+            x = self.c * x
+        return x
 
     def forward_mult(self, u, delta, transpose=False):
-        du = self.du
-        d = self.d
-        dl = self.dl
-        pr = self.pr
-        pl = self.pl
-        c = self.c
-        if transpose:
-            return trid_gbt_forward(
-                delta, u,
-                du, d, dl, pr, pl, c,
-            )
-        else:
-            return trid_gbt_forward(
-                delta, u,
-                dl, d, du, pl, pr, c,
-            )
+        """ Computes y = (I - delta A) u
+        self.a: (..., n)
+        u: (..., n)
+        delta: (...)
+        x: (..., n)
+        """
+
+        t = self.e - delta.unsqueeze(-1) * self.a # represents (I - delta A)
+        return self._mult(t, u, transpose)
 
     def inverse_mult(self, u, delta, transpose=False):
-        du = self.du
-        d = self.d
-        dl = self.dl
-        pr = self.pr
-        pl = self.pl
-        c = self.c
-        if transpose:
-            return trid_gbt_backward(
-                delta, u,
-                du, d, dl, pr, pl, c,
-            )
-        else:
-            return trid_gbt_backward(
-                delta, u,
-                dl, d, du, pl, pr, c,
-            )
+        """ Computes (I + d A)^-1 u """
 
-# TODO turn this into class method
-def _diag(N, c): return F.pad(torch.ones(N-1), (1, 1)) * c
+        t = self.e + delta.unsqueeze(-1) * self.a
+        # t_ = causal_convolution_inverse_wrong(t, self.e) # represents (I + delta A)^-1
+        t_ = causal_convolution_inverse(t) # represents (I + delta A)^-1
+        return self._mult(t_, u, transpose)
 
-class LegTTriDInverseAdaptiveTransition(TriDInverseAdaptiveTransition):
-    def __init__(self, N, corners=3, **kwargs):
-        p = torch.sqrt(1+2*torch.arange(N))
-        # p = torch.ones(N)
-        dl = _diag(N, -.5) # + F.pad(torch.randn(N-1)*1e-4, (1, 1))
-        du = _diag(N, .5) # + F.pad(torch.randn(N-1)*1e-4, (1, 1))
-        d = torch.zeros(N) + torch.randn(N)*1e-2
-        if corners == 0:
-            pass
-        elif corners == 1:
-            d[0] += .5
-        elif corners == 2:
-            d[-1] += .5
-        elif corners == 3:
-            d[0] += .5
-            d[-1] += .5
-        else: raise NotImplementedError
-        c = torch.ones(N) * 0. # + torch.randn(N)*1e-4
-
-        super().__init__(N, dl, d, du, p, p, c, torch.ones(N), **kwargs)
-
-class LagTTriDInverseAdaptiveTransition(TriDInverseAdaptiveTransition):
+class LagTToeplitzAdaptiveTransition(ToeplitzAdaptiveTransition):
     def __init__(self, N, **kwargs):
-        p = torch.ones(N)
-        dl = _diag(N, -1.)
-        du = _diag(N, 0.)
-        d = torch.ones(N)
-        c = torch.ones(N) * -.5
+        a = torch.ones(N)
+        a[..., 0] = .5
+        b = torch.ones(N)
+        c = torch.ones(N)
+        super().__init__(N, a, b, c, **kwargs)
 
-        super().__init__(N, dl, d, du, p, p, c, torch.ones(N), **kwargs)
-
-class LegSTriDInverseAdaptiveTransition(TriDInverseAdaptiveTransition):
-    def __init__(self, N, diag_scale=2, diag_add=True, **kwargs):
-        # print(diag_scale, kwargs)
-        if diag_scale == 2:
-            p = torch.sqrt(2*torch.arange(N)+1)
-        elif diag_scale == 1:
-            p = torch.sqrt(torch.arange(N)+1)
-        elif diag_scale == 0:
-            p = torch.ones(N)
-        else: raise NotImplementedError
-        dl = _diag(N, -1.)
-        du = _diag(N, 0.)
-        d = torch.ones(N)
-        if diag_add:
-            c = - torch.arange(N) / (2*torch.arange(N)+1)
-        else:
-            c = - .5 * torch.ones(N)
-
-        super().__init__(N, dl, d, du, p, p, c, torch.ones(N), **kwargs)
-        # print(self.A)
-
-
-class JacTriDInverseAdaptiveTransition(TriDInverseAdaptiveTransition):
-    def __init__(self, N, halve=False, double_B=True, **kwargs):
-        # print(diag_scale, kwargs)
-        p = torch.sqrt(2*torch.arange(N)+2)
-        dl = _diag(N, -1.)
-        du = _diag(N, 0.)
-        d = torch.ones(N)
-        if halve:
-            c = - .5 * torch.ones(N)
-        else:
-            c = 0.0 * torch.ones(N)
-
-        if double_B:
-            B = 2 * torch.ones(N)
-        else:
-            B = torch.ones(N)
-
-        super().__init__(N, dl, d, du, p, p, c, B, **kwargs)
-        # print(self.A)
-
-
-class ChebITriDInverseAdaptiveTransition(TriDInverseAdaptiveTransition):
-    def __init__(self, N, **kwargs):
-        # p = torch.sqrt(1+2*torch.arange(N))
-        p = torch.ones(N)
-        dl = _diag(N, -.5) # + F.pad(torch.randn(N-1)*1e-4, (1, 1))
-        du = _diag(N, .5) # + F.pad(torch.randn(N-1)*1e-4, (1, 1))
-        d = torch.zeros(N) + torch.randn(N)*1e-3
-        # d = torch.zeros(N)
-        # d[0] += .5
-        # d[-1] += .5
-        dl[0] *= 2.**.5
-        du[0] *= 2.**.5
-        c = torch.ones(N) * 0. # + torch.randn(N)*1e-4
-
-        super().__init__(N, dl, d, du, p, p, c, torch.ones(N), **kwargs)
-
-class ChebIITriDInverseAdaptiveTransition(TriDInverseAdaptiveTransition):
-    def __init__(self, N, **kwargs):
-        p = torch.ones(N)
-        du = _diag(N, .5)
-        # du = 2.0 * du
-        # dl = _diag(N, -.5) + F.pad(torch.randn(N-1)*2e-1, (1, 1))
-        # dl = F.pad(torch.randn(N-1), (1,1)) * .5
-        dl = -du
-        d = torch.zeros(N) + torch.randn(N)*1e-3
-        # d = torch.zeros(N)
-        c = torch.ones(N) * 0. # + torch.randn(N)*1e-4
-
-        super().__init__(N, dl, d, du, p, p, c, torch.ones(N), **kwargs)
-
-# class ToeplitzAdaptiveTransition(AdaptiveTransition):
-#     """ NOTE stores matrix for x' = -Ax + Bu instead of x' = Ax + Bu """
-#
-#     def __init__(self, N, a, b, c, **kwargs):
-#         """ Implements update for lower triangular Toeplitz transitions A.
-#         a: represents the diagonals of a lower triangular Toeplitz transition matrix
-#         b: B transition matrix
-#         c: scaling factors
-#         A = c a c^{-1}, B = c b (note that c represents \Lambda^{-1} in the HiPPO paper)
-#         """
-#         super().__init__(N, {'a': a, 'c': c, 'b': b}, **kwargs)
-#         e = torch.zeros(N)
-#         e[0] = 1.0
-#         self.register_buffer('e', e) # for convenience
-#
-#
-#
-#     def _A(self): # TODO do this for all classes? how to know when to cache A or not?
-#         # Z = torch.diag_embed(torch.ones(self.N-1), -1).to(self.a)
-#         # [21-09-14 TODO] changed the krylov construction but haven't tested
-#         # Z = torch.diag_embed(self.ones[:-1], -1)
-#         # A = krylov(self.N, Z, self.a) # TODO use toeplitz.toeplitz_krylov_fast instead
-#         A = construct_toeplitz(self.a)
-#         A = A.transpose(0, 1)
-#         A = self.c.unsqueeze(-1) * A * self.c.reciprocal()
-#         return A
-#
-#     # @property
-#     def _B(self):
-#         return self.c * self.b
-#
-#     # TODO do we need the gbt_A() and gbt_B() methods to materialize the GBT matrices faster?
-#
-#     def quadratic(self, x, y): # TODO need this? also, move to main superclass
-#         """
-#         x : (..., N)
-#         y : (..., N)
-#         returns: x^T A y (...)
-#         """
-#         return torch.sum((self.A @ y.unsqueeze(-1)).squeeze(-1) * x, dim=-1)
-#
-#     def _mult(self, t, u, transpose):
-#         if transpose:
-#             x = self.c * u
-#             x = causal_convolution(t, x.flip(-1)).flip(-1)
-#             x = self.c.reciprocal() * x
-#         else:
-#             x = self.c.reciprocal() * u
-#             x = causal_convolution(t, x)
-#             x = self.c * x
-#         return x
-#
-#     def forward_mult(self, u, delta, transpose=False):
-#         """ Computes y = (I - delta A) u
-#         self.a: (..., n)
-#         u: (..., n)
-#         delta: (...)
-#         x: (..., n)
-#         """
-#
-#         t = self.e - delta.unsqueeze(-1) * self.a # represents (I - delta A)
-#         return self._mult(t, u, transpose)
-#
-#     def inverse_mult(self, u, delta, transpose=False):
-#         """ Computes (I + d A)^-1 u """
-#
-#         t = self.e + delta.unsqueeze(-1) * self.a
-#         # t_ = causal_convolution_inverse_wrong(t, self.e) # represents (I + delta A)^-1
-#         t_ = causal_convolution_inverse(t) # represents (I + delta A)^-1
-#         return self._mult(t_, u, transpose)
-
-# class LagTToeplitzAdaptiveTransition(ToeplitzAdaptiveTransition):
-#     def __init__(self, N, **kwargs):
-#         a = torch.ones(N)
-#         a[..., 0] = .5
-#         b = torch.ones(N)
-#         c = torch.ones(N)
-#         super().__init__(N, a, b, c, **kwargs)
-#
-# class GLagTToeplitzAdaptiveTransition(ToeplitzAdaptiveTransition):
-#     def __init__(self, N, alpha=0.0, beta=0.01, **kwargs):
-#         a = torch.ones(N)
-#         a[..., 0] = (1. + beta) / 2.
-#         # b = torch.ones(N)
-#         b = ss.binom(alpha + np.arange(N), np.arange(N)) * np.exp(-.5 * ss.gammaln(1-alpha)) * beta**((1-alpha)/2)
-#         b = torch.as_tensor(b, dtype=torch.float)
-#         # c = torch.ones(N)
-#         c = np.exp(.5 * (ss.gammaln(np.arange(N)+alpha+1) - ss.gammaln(np.arange(N)+1)))
-#         c = 1. / c
-#         c = torch.as_tensor(c, dtype=torch.float)
-#         super().__init__(N, a, b, c, **kwargs)
+class GLagTToeplitzAdaptiveTransition(ToeplitzAdaptiveTransition):
+    def __init__(self, N, alpha=0.0, beta=0.01, **kwargs):
+        a = torch.ones(N)
+        a[..., 0] = (1. + beta) / 2.
+        # b = torch.ones(N)
+        b = ss.binom(alpha + np.arange(N), np.arange(N)) * np.exp(-.5 * ss.gammaln(1-alpha)) * beta**((1-alpha)/2)
+        b = torch.as_tensor(b, dtype=torch.float)
+        # c = torch.ones(N)
+        c = np.exp(.5 * (ss.gammaln(np.arange(N)+alpha+1) - ss.gammaln(np.arange(N)+1)))
+        c = 1. / c
+        c = torch.as_tensor(c, dtype=torch.float)
+        super().__init__(N, a, b, c, **kwargs)
