@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from datasets import SequentialCIFAR10
+from ss_datasets import SequentialCIFAR10
 from model.lssl import StateSpace
 from model.s4_model import S4Model
 from sequence_models.base import SequenceModule

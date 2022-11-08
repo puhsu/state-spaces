@@ -1,1 +1,0 @@
-curl https://storage.googleapis.com/long-range-arena/lra_release.gz -o data

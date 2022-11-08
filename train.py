@@ -9,7 +9,7 @@ import tqdm.autonotebook as tqdm
 from model.s4 import S4
 from model.s4d import S4D
 from model.s4_model import S4Model
-from datasets import SequentialCIFAR10
+from ss_datasets import SequentialCIFAR10
 
 
 def train(model, optimizer, loss_fn, dl, device):
@@ -133,9 +133,9 @@ if __name__ == '__main__':
     parser.add_argument(
         "--data_path",
         type=str,
-        default="~/datasets/",
+        default="~/ss_datasets/",
         metavar="PATH",
-        help="path to datasets location (default: ~/datasets/)",
+        help="path to ss_datasets location (default: ~/ss_datasets/)",
     )
     parser.add_argument(
         '--gpu',

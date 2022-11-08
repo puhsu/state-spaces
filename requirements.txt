@@ -13,3 +13,6 @@ tqdm
 opt_einsum
 omegaconf
 pykeops
+torchaudio
+torchtext
+datasets
