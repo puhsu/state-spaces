@@ -59,8 +59,9 @@ class LSSMTrainingArguments:
     batch_size: int = field(default=256, metadata={'help': 'Train batch size (eval batch size is doubled).'})
 
     hidden_size: int = field(default=256, metadata={'help': 'Size of hidden data representations.'})
-    n_layers: int = field(default=4, metadata={'help': 'Number of LSSM layers.'})
+    n_layers: int = field(default=4, metadata={'help': 'Number of LSSL layers.'})
     dropout: float = field(default=0.2, metadata={'help': 'Dropout probability.'})
+    channels: int = field(default=4, metadata={'help': 'Number of channels for LSSL layers.'})
 
     learning_rate: float = field(default=1e-3, metadata={'help': 'Learning rate for training loop.'})
     patience: int = field(default=5, metadata={'help': 'Patience before lr drop.'})
@@ -157,10 +158,14 @@ if __name__ == '__main__':
         d_model=args.hidden_size,
         n_layers=args.n_layers,
         dropout=args.dropout,
-        block_class=StateSpace
+        block_class=StateSpace,
+        block_kwargs={'channels': args.channels}
     ).to(DEVICE)
     optimizer = AdamW(params=model.parameters(), lr=args.learning_rate)
     loss_fn = CrossEntropyLoss()
+
+    logger.info('Optimized model:')
+    logger.info(model)
 
     curr_lr = args.learning_rate
     patience = args.patience
