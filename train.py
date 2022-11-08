@@ -17,7 +17,7 @@ from sequence_models.pool import registry as pool_registry
 from sequence_models.residual import registry as residual_registry
 from sequence_models.model import SequenceModel, SequenceDecoder, SequenceModelWrapper
 
-from datasets import SequentialCIFAR10
+from ss_datasets import SequentialCIFAR10
 
 
 class HashDict(dict):
