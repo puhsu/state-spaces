@@ -25,7 +25,7 @@ class HashDict(dict):
         return hash(tuple(sorted(self.items())))
 
 
-def train(model, optimizer, scheduler, loss_fn, dl, device, epoch=-1, logger=None):
+def train(model, optimizer, scheduler, loss_fn, dl, device, logger=None):
     model.train()
 
     n_objects, total_loss, accuracy = 0, 0.0, 0
@@ -47,9 +47,9 @@ def train(model, optimizer, scheduler, loss_fn, dl, device, epoch=-1, logger=Non
         scheduler.step()
         if logger is not None:
             for p_idx, p_lr in enumerate(scheduler.get_last_lr()):
-                logger.log({f'lr/pg{p_idx}': p_lr}, step=epoch * len(dl) + idx)
-            logger.log({'running_loss/train': total_loss / n_objects}, step=epoch * len(dl) + idx)
-            logger.log({'running_accuracy/train': accuracy / n_objects}, step=epoch * len(dl) + idx)
+                logger.log({f'lr/pg{p_idx}': p_lr})
+            logger.log({'running_loss/train': total_loss / n_objects})
+            logger.log({'running_accuracy/train': accuracy / n_objects})
         pbar.set_description('Loss: {0:.3f}. Accuracy: {1:.3f}'.format(total_loss / n_objects, accuracy / n_objects))
 
     return total_loss / n_objects, accuracy / n_objects
@@ -181,8 +181,8 @@ def main(args):
     prev_run_ids = [regex.match(rf'^\d+', x) for x in prev_run_dirs]
     prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
     cur_run_id = max(prev_run_ids, default=-1) + 1
-    exp_name = '{0}-{1:0>5d}-lr{2}_nws{3}_wd{4}_ep{5}_bs{6}'.format(
-        dataset_name, cur_run_id, args.lr, args.num_warmup_steps, args.wd, args.epochs, args.batch_size
+    exp_name = '{0:0>5d}-{1}-lr{2}_nws{3}_wd{4}_ep{5}_bs{6}'.format(
+        cur_run_id, dataset_name, args.lr, args.num_warmup_steps, args.wd, args.epochs, args.batch_size
     )
 
     log_dir = os.path.join(base_dir, exp_name)
@@ -209,12 +209,12 @@ def main(args):
     print(model)
     print('Number of trainable parameters:', sum(param.numel() for param in model.parameters() if param.requires_grad))
     optimizer = torch.optim.AdamW(params_groups, lr=args.lr, weight_decay=args.wd)
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda, last_epoch=-1, verbose=False)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda, last_epoch=-1)
 
     all_losses_test, all_accuracies_test = [], []
     all_losses_train, all_accuracies_train = [], []
     for epoch in tqdm.tqdm(range(args.epochs), total=args.epochs):
-        _, _ = train(model, optimizer, scheduler, loss_fn, dl_train, device=device, logger=w_logger, epoch=epoch)
+        _, _ = train(model, optimizer, scheduler, loss_fn, dl_train, device=device, logger=w_logger)
 
         loss_train, accuracy_train = test(model, loss_fn, dl_train, device=device)
         loss_test, accuracy_test = test(model, loss_fn, dl_test, device=device)
@@ -228,11 +228,11 @@ def main(args):
             epoch, all_losses_train[-1], all_losses_test[-1], all_accuracies_train[-1], all_accuracies_test[-1]
         ))
         w_logger.log({
-            'loss-test': all_losses_test[-1],
-            'loss-train': all_losses_train[-1],
-            'accuracy-test': all_accuracies_test[-1],
-            'accuracy-train': all_accuracies_train[-1]
-        }, step=epoch * len(dl_train), commit=True)
+            'loss/test': all_losses_test[-1],
+            'loss/train': all_losses_train[-1],
+            'accuracy/test': all_accuracies_test[-1],
+            'accuracy/train': all_accuracies_train[-1]
+        })
 
 
 if __name__ == '__main__':
@@ -241,9 +241,9 @@ if __name__ == '__main__':
     parser.add_argument(
         "--data_path",
         type=str,
-        default="~/ss_datasets/",
+        default="~/datasets/",
         metavar="PATH",
-        help="path to ss_datasets location (default: ~/ss_datasets/)",
+        help="path to ss_datasets location (default: ~/datasets/)",
     )
     parser.add_argument(
         '--gpu',
