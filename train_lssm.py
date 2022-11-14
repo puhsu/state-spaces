@@ -5,7 +5,7 @@ from dataclasses import field
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Callable, Optional, Tuple, Any
+from typing import Dict, List, Callable, Optional, Tuple, Any, Type
 
 import numpy as np
 import torch
@@ -20,7 +20,6 @@ from tqdm import tqdm
 
 from ss_datasets import SequentialCIFAR10
 from model.s4_model import S4Model
-from sequence_models.base import SequenceModule
 from model.lssl import StateSpace as LSSL
 from model.s4_model import S4
 
@@ -128,7 +127,7 @@ def validate(
     return metrics
 
 
-def init_block_params(args: LSSMTrainingArguments) -> Tuple[SequenceModule, Dict[str, Any]]:
+def init_block_params(args: LSSMTrainingArguments) -> Tuple[Type[Module], Dict[str, Any]]:
     if args.sequence_module == 'lssl':
         return LSSL, {
             'channels': args.channels,

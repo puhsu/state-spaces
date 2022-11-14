@@ -1,11 +1,7 @@
-from typing import Callable, Any
-
 import torch.nn as nn
-from torch.nn import Module
 
 from sequence_models.base import SequenceModule
 from sequence_models.s4 import S4
-from .s4d import S4D
 
 
 class S4Model(nn.Module):
