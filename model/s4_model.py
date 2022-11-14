@@ -1,8 +1,6 @@
 from typing import Type
 
 import torch.nn as nn
-from torch import Module
-
 
 class S4Model(nn.Module):
 
@@ -14,7 +12,7 @@ class S4Model(nn.Module):
         n_layers=4,
         dropout=0.2,
         prenorm=False,
-        block_class: Type[Module] = None,
+        block_class: Type[nn.Module] = None,
         block_kwargs=None,
         dropout_fn=nn.Dropout1d
     ):
