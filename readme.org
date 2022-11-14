@@ -6,7 +6,7 @@
 - [-] Experiments (sanity checks)
   On sequential cifar (reproduce table 1 from https://arxiv.org/abs/2110.13985)
   - [X] Train a Transformer
-  - [X] Train LSSM (done: dev/test 0.8126/0.814)
+  - [X] Train LSSM (done: dev/test 0.8697/0.862)
   - [ ] Train S4 (almost here) @nakhodnov17
 - [X] Papers
   Talk trough:
