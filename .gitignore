@@ -1,3 +1,6 @@
 .idea
+.DS_Store
 __pycache__
 .ipynb_checkpoints
+ss_datasets/lra/lra_release
+ss_datasets/lra/lra_release.gz
