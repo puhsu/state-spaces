@@ -18,10 +18,10 @@ from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
+from model.s4 import S4
 from ss_datasets import SequentialCIFAR10
 from model.s4_model import S4Model
 from model.lssl import StateSpace as LSSL
-from model.s4_model import S4
 
 
 class TqdmLoggingHandler(logging.Handler):
