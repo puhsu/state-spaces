@@ -75,7 +75,7 @@ def test(model, loss_fn, dl, device):
     return total_loss / n_objects, accuracy / n_objects
 
 
-def main(args):
+def main(args, d_model=512, n_layers=6, dropout=0.25, d_state=64, **kwargs):
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
     os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
     wandb.login(key=args.wandb_key)
@@ -109,16 +109,16 @@ def main(args):
 
     loss_fn = torch.nn.CrossEntropyLoss(reduction='mean')
     model_kwargs = {
-        'd_model': 512,
-        'n_layers': 6,
+        'd_model': d_model,
+        'n_layers': n_layers,
         'transposed': False,
-        'dropout': 0.25,
+        'dropout': dropout,
         'tie_dropout': True,
         'prenorm': False,
         'n_repeat': 1,
         'layer': {
             'class': S4,
-            'd_state': 64,
+            'd_state': d_state,
             'l_max': None,
             'channels': 1,
             'bidirectional': True,
@@ -317,5 +317,5 @@ if __name__ == '__main__':
         help='API key for wandb'
     )
 
-    args = parser.parse_args()
-    main(args)
+    args, kwargs = parser.parse_known_args()
+    main(args, **kwargs)
