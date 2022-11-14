@@ -1,8 +1,19 @@
+import pykeops
+
+# Changing verbose and mode
+pykeops.verbose = True
+pykeops.build_type = 'Debug'
+
+# Clean up the already compiled files
+pykeops.clean_pykeops()
+
+# Test Numpy integration
+pykeops.test_numpy_bindings()
+
 import os
 import argparse
 from collections import defaultdict
 
-import pykeops
 import regex
 
 import wandb
@@ -19,17 +30,6 @@ from sequence_models.residual import registry as residual_registry
 from sequence_models.model import SequenceModel, SequenceDecoder, SequenceModelWrapper
 
 from datasets import SequentialCIFAR10
-
-
-# Changing verbose and mode
-pykeops.verbose = True
-pykeops.build_type = 'Debug'
-
-# Clean up the already compiled files
-pykeops.clean_pykeops()
-
-# Test Numpy integration
-pykeops.test_numpy_bindings()
 
 
 class HashDict(dict):
