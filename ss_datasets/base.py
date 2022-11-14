@@ -67,6 +67,7 @@ class DefaultCollateMixin:
                 numel = sum(x.numel() for x in batch)
                 storage = elem.storage()._new_shared(numel)
                 out = elem.new(storage)
+            out = out.view([len(batch), *batch[0].shape])
             x = torch.stack(batch, dim=0, out=out)
 
             # Insert custom functionality into the collate_fn

@@ -22,6 +22,8 @@ from model.s4 import S4
 from ss_datasets import SequentialCIFAR10
 from model.s4_model import S4Model
 from model.lssl import StateSpace as LSSL
+from ss_datasets.lra.configure import configure_lra
+from ss_datasets.lra.loader import PathFinder
 
 
 class TqdmLoggingHandler(logging.Handler):
@@ -44,11 +46,55 @@ logger.addHandler(TqdmLoggingHandler())
 
 class Dataset(str, Enum):
     CIFAR = 'cifar'
+    PATH64 = 'path64'
+    PATH128 = 'path128'
+    PATH256 = 'path256'
 
 
-TRAIN_READERS = {Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=True, download=True)}
-VAL_READERS = {}
-TEST_READERS = {Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=False, download=True)}
+class PathXHandler:
+
+    path64: Optional[PathFinder] = None
+    path128: Optional[PathFinder] = None
+    path256: Optional[PathFinder] = None
+
+    __init__ = None
+
+    @classmethod
+    def get_path64(cls) -> PathFinder:
+        if cls.path64 is None:
+            cls.path64 = configure_lra(x=64)
+        return cls.path64
+
+    @classmethod
+    def get_path128(cls) -> PathFinder:
+        if cls.path128 is None:
+            cls.path128 = configure_lra(x=128)
+        return cls.path128
+
+    @classmethod
+    def get_path256(cls) -> PathFinder:
+        if cls.path256 is None:
+            cls.path256 = configure_lra(x=256)
+        return cls.path256
+
+
+TRAIN_READERS = {
+    Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=True, download=True),
+    Dataset.PATH64: lambda: PathXHandler.get_path64().dataset_train,
+    Dataset.PATH128: lambda: PathXHandler.get_path128().dataset_train,
+    Dataset.PATH256: lambda: PathXHandler.get_path256().dataset_train
+}
+VAL_READERS = {
+    Dataset.PATH64: lambda: PathXHandler.get_path64().dataset_val,
+    Dataset.PATH128: lambda: PathXHandler.get_path128().dataset_val,
+    Dataset.PATH256: lambda: PathXHandler.get_path256().dataset_val
+}
+TEST_READERS = {
+    Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=False, download=True),
+    Dataset.PATH64: lambda: PathXHandler.get_path64().dataset_test,
+    Dataset.PATH128: lambda: PathXHandler.get_path128().dataset_test,
+    Dataset.PATH256: lambda: PathXHandler.get_path256().dataset_test
+}
 NUM_FEATURES = {Dataset.CIFAR: 3}
 NUM_CATEGORIES = {Dataset.CIFAR: 10}
 
