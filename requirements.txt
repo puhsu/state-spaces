@@ -1,6 +1,7 @@
 argparse-dataclass
 einops
 extensions
+hydra
 numpy
 pytorch-lightning
 scikit-learn
@@ -16,3 +17,4 @@ pykeops
 torchaudio
 torchtext
 datasets
+wandb

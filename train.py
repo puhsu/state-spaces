@@ -94,6 +94,13 @@ def main(args):
         ds_train, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True
     )
 
+    # from ss_datasets.lra.configure import configure_lra
+    # dl = configure_lra()
+    # dl_test = dl.test_dataloader(batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
+    # dl_train = dl.train_dataloader(batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
+    # print(next(iter(dl_test)))
+    # quit(0)
+
     loss_fn = torch.nn.CrossEntropyLoss(reduction='mean')
     model_kwargs = {
         'd_model': 512,
