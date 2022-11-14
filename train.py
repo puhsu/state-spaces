@@ -77,6 +77,7 @@ def test(model, loss_fn, dl, device):
 def main(args):
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
     os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
+    wandb.login(key=args.wandb_key)
 
     if torch.cuda.is_available():
         device = torch.device('cuda:0')
@@ -200,15 +201,18 @@ def main(args):
         }
     )
 
-    params_groups = defaultdict(list)
+    params_groups_dict = defaultdict(list)
     for parameter in model.parameters():
         opt_params = (
             getattr(parameter, '_optim') if
             hasattr(parameter, '_optim') else
             {'lr': args.lr, 'weight_decay': args.wd}
         )
-        params_groups[HashDict(opt_params)].append(parameter)
-    params_groups = [key | {'params': value} for key, value in params_groups.items()]
+        params_groups_dict[HashDict(opt_params)].append(parameter)
+    params_groups = []
+    for key, value in params_groups_dict.items():
+        params_groups.append(key)
+        params_groups[-1].update({'params': value})
     lr_lambda = (
         lambda step: (step + 1) / (args.num_warmup_steps + 1) if step < args.num_warmup_steps else 1.0
     )
@@ -296,6 +300,12 @@ if __name__ == '__main__':
         type=float,
         default=0.01,
         help="Weight decay (default: 0.01)",
+    )
+    parser.add_argument(
+        '--wandb-key',
+        type=str,
+        default=None,
+        help='API key for wandb'
     )
 
     args = parser.parse_args()
