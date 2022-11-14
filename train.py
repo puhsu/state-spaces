@@ -18,6 +18,7 @@ from sequence_models.residual import registry as residual_registry
 from sequence_models.model import SequenceModel, SequenceDecoder, SequenceModelWrapper
 
 from ss_datasets import SequentialCIFAR10
+from ss_datasets.lra.configure import configure_lra
 
 
 class HashDict(dict):
@@ -29,7 +30,7 @@ def train(model, optimizer, scheduler, loss_fn, dl, device, logger=None):
     model.train()
 
     n_objects, total_loss, accuracy = 0, 0.0, 0
-    for idx, (images, labels) in enumerate((pbar := tqdm.tqdm(dl, total=len(dl), leave=False))):
+    for idx, (images, labels, *_) in enumerate((pbar := tqdm.tqdm(dl, total=len(dl), leave=False))):
         optimizer.zero_grad()
 
         images = images.to(device=device)
@@ -59,7 +60,7 @@ def test(model, loss_fn, dl, device):
     model.eval()
     with torch.no_grad():
         n_objects, total_loss, accuracy = 0, 0.0, 0
-        for images, labels in tqdm.tqdm(dl, total=len(dl), leave=False):
+        for images, labels, *_ in tqdm.tqdm(dl, total=len(dl), leave=False):
             images = images.to(device=device)
             labels = labels.to(device=device, dtype=torch.long)
             y = model(images)
@@ -85,22 +86,26 @@ def main(args):
         device = torch.device('cpu')
     print('Using device:', device)
 
-    ds_test = SequentialCIFAR10(args.data_path, train=False, download=True)
-    ds_train = SequentialCIFAR10(args.data_path, train=True, download=False)
+    if args.dataset == 'CIFAR10':
+        in_features, d_output = 3, 10
 
-    dl_test = torch.utils.data.DataLoader(
-        ds_test, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False
-    )
-    dl_train = torch.utils.data.DataLoader(
-        ds_train, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True
-    )
+        ds_test = SequentialCIFAR10(args.data_path, train=False, download=True)
+        ds_train = SequentialCIFAR10(args.data_path, train=True, download=False)
 
-    # from ss_datasets.lra.configure import configure_lra
-    # dl = configure_lra()
-    # dl_test = dl.test_dataloader(batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
-    # dl_train = dl.train_dataloader(batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
-    # print(next(iter(dl_test)))
-    # quit(0)
+        dl_test = torch.utils.data.DataLoader(
+            ds_test, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False
+        )
+        dl_train = torch.utils.data.DataLoader(
+            ds_train, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True
+        )
+    elif args.dataset.startswith('pathfinder'):
+        in_features, d_output = 1, 2
+
+        dl = configure_lra(data_dir=os.path.join(args.data_path, 'lra_release', args.dataset))
+        dl_train = dl.train_dataloader(batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
+        dl_test = dl.val_dataloader(batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)[None]
+    else:
+        raise ValueError(f'Unknows dataset: {args.dataset}')
 
     loss_fn = torch.nn.CrossEntropyLoss(reduction='mean')
     model_kwargs = {
@@ -161,15 +166,13 @@ def main(args):
         'dropinp': 0.0,
     }
     encoder_kwargs = {
-        'in_features': 3,
+        'in_features': in_features,
         'out_features': model_kwargs['d_model'],
     }
     decoder_kwargs = {
-        # 'in_features': model_kwargs['d_model'],
-        # 'out_features': len(ds_train.data.classes),
         'l_output': 0,
         'd_model': model_kwargs['d_model'],
-        'd_output': len(ds_train.data.classes),
+        'd_output': d_output,
     }
 
     model = SequenceModelWrapper(
@@ -179,7 +182,7 @@ def main(args):
     ).to(device)
 
     # Pick output directory.
-    base_dir, dataset_name = './training-runs', 'scifar'
+    base_dir, dataset_name = './training-runs', args.dataset
     prev_run_dirs = []
     if os.path.isdir(base_dir):
         prev_run_dirs = [
@@ -250,7 +253,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Model training")
 
     parser.add_argument(
-        "--data_path",
+        "--data-path",
         type=str,
         default="~/datasets/",
         metavar="PATH",
@@ -261,6 +264,12 @@ if __name__ == '__main__':
         type=str,
         default='0',
         help="GPU to use"
+    )
+    parser.add_argument(
+        '--dataset',
+        type=str,
+        default='CIFAR10',
+        help="Target dataset"
     )
     parser.add_argument(
         "--batch_size",
