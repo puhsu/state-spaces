@@ -2,14 +2,31 @@
 
 * Todos:
 
-** TODO Til Tuesday [0/2]
-DEADLINE: <2022-11-08 Tue>
-- [ ] Experiments (sanity checks)
+** TODO Til Someday [1/2]
+- [-] Experiments (sanity checks)
   On sequential cifar (reproduce table 1 from https://arxiv.org/abs/2110.13985)
-  - Train a Transformer
-  - Train LSSM (done: dev/test 0.8126/0.814)
-  - Train S4
-- [ ] Papers
+  - [X] Train a Transformer
+  - [X] Train LSSM (done: dev/test 0.8126/0.814)
+  - [ ] Train S4 (almost here) @nakhodnov17
+- [X] Papers
   Talk trough:
   - https://arxiv.org/abs/2110.13985
   - https://arxiv.org/abs/2111.00396
+** TODO Experiments (mon, tue, wed)
+- [ ] Transformer on LRA (path-X (maybe smaller if it's a problem), should fail: probably OOM) @vladyur (table 4)
+- [ ] CIFAR autoregressive generation (table 7)
+  - S4 @nakhodnov17
+  - Transformer @vladyur or @ViktorooTg
+- [ ] Transformer with flash-attention on LRA (path-X, should be ok)  @vladyur or @ViktorooTg
+  links:
+  - https://habr.com/ru/post/669506/
+  - https://github.com/HazyResearch/flash-attention
+  - оно есть в xformers, можно посмотреть как используют операцию https://github.com/facebookresearch/xformers/blob/main/xformers/benchmarks/benchmark_mem_eff_attention.py, по сути просот подменяют MHSA на то что написали во flash-attention
+- [ ] Потенциально в самом конце (скорее всего не успеем) @anyone: сравниться с https://github.com/ctlllll/SGConv/blob/main/gconv.py
+** TODO Presentation
+- prepare for the final presentation
+  - lssl is ok on CIFAR (much better than a transformer?), but
+  - s4 works (high probability)
+  - transformer works (and fails where it should)
+  - Our benchmarks: cifar pixel level, cifar density estimation, path-x binclass
+    (add speed + memory benchmarks for the presentation)
