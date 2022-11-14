@@ -1,7 +1,7 @@
-import torch.nn as nn
+from typing import Type
 
-from sequence_models.base import SequenceModule
-from sequence_models.s4 import S4
+import torch.nn as nn
+from torch import Module
 
 
 class S4Model(nn.Module):
@@ -14,11 +14,15 @@ class S4Model(nn.Module):
         n_layers=4,
         dropout=0.2,
         prenorm=False,
-        block_class: SequenceModule = S4,
+        block_class: Type[Module] = None,
         block_kwargs=None,
         dropout_fn=nn.Dropout1d
     ):
         super().__init__()
+        if block_class is None:
+            # to avoid importing unnecessary modules
+            from sequence_models.s4 import S4
+            block_class = S4
 
         self.prenorm = prenorm
 
