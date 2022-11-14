@@ -19,11 +19,10 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from ss_datasets import SequentialCIFAR10
-from model.lssl import StateSpace
 from model.s4_model import S4Model
 from sequence_models.base import SequenceModule
-from sequence_models.lssl import LSSL
-from sequence_models.s4 import S4
+from model.lssl import StateSpace as LSSL
+from model.s4_model import S4
 
 
 class TqdmLoggingHandler(logging.Handler):
@@ -66,7 +65,6 @@ class LSSMTrainingArguments:
     n_layers: int = field(default=4, metadata={'help': 'Number of LSSL layers.'})
     dropout: float = field(default=0.2, metadata={'help': 'Dropout probability.'})
     channels: int = field(default=4, metadata={'help': 'Number of channels for LSSL layers.'})
-    lssl_learn: int = field(default=1, metadata={'help': 'Learn mode (only for LSSL): 0, 1 or 2.'})
 
     learning_rate: float = field(default=1e-3, metadata={'help': 'Learning rate for training loop.'})
     patience: int = field(default=5, metadata={'help': 'Patience before lr drop.'})
