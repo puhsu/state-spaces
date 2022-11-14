@@ -4,7 +4,7 @@
   "memory_needed": 40,
   "command": "python train_lssm.py",
   "args": [
-    "--sequence_module=lssl",
+    "--sequence-module=lssl",
     "--log-file=lssl.csv",
     "--batch-size=50",
     "--dropout=0.3",
