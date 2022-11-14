@@ -130,8 +130,7 @@ def validate(
 def init_block_params(args: LSSMTrainingArguments) -> Tuple[Type[Module], Dict[str, Any]]:
     if args.sequence_module == 'lssl':
         return LSSL, {
-            'channels': args.channels,
-            'learn': args.lssl_learn
+            'channels': args.channels
         }
     elif args.sequence_module == 's4':
         return S4, {
