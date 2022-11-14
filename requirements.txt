@@ -16,3 +16,5 @@ pykeops
 torchaudio
 torchtext
 datasets
+wandb
+regex
