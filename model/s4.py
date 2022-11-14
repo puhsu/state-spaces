@@ -139,7 +139,7 @@ try:  # Try pykeops
         r = vandermonde_mult(u, v, x, l, backend='GPU')
         return _r2c(r)
 
-except ImportError:
+except:
     has_pykeops = False
     if not has_cauchy_extension:
         log.warning(
