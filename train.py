@@ -1,6 +1,15 @@
 import os
 import argparse
 from collections import defaultdict
+# Testing PyKeops installation
+import pykeops
+
+# Changing verbose and mode
+pykeops.verbose = True
+pykeops.build_type = 'Debug'
+
+# Clean up the already compiled files
+pykeops.clean_pykeops()
 
 import regex
 
