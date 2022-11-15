@@ -140,7 +140,7 @@ def main(args):
             'deterministic': False,
             'lr': 0.001,
             'mode': 'nplr',
-            'n_ssm': 2,
+            'n_ssm': args.n_ssm,
 
             # SSKernelNPLR:
             # keops=False,
@@ -331,6 +331,11 @@ if __name__ == '__main__':
         "--d_state",
         type=int,
         default=64,
+    )
+    parser.add_argument(
+        "--n_ssm",
+        type=int,
+        default=2,
     )
     parser.add_argument(
         "--dropout",
