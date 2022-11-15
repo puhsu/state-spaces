@@ -104,9 +104,6 @@ def main(args):
         dl = configure_lra(data_dir=os.path.join(args.data_path, 'lra_release', args.dataset))
         dl_train = dl.train_dataloader(batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
         dl_test = dl.val_dataloader(batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)[None]
-        print(len(dl_test), len(dl_train))
-        print(len(dl_test.dataset), len(dl_train.dataset))
-        quit(0)
     else:
         raise ValueError(f'Unknows dataset: {args.dataset}')
 
