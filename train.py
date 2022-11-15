@@ -160,7 +160,7 @@ def main(args):
         'residual': {
             'class': residual_registry['R'],
         },
-        'norm': 'batch',
+        'norm': args.norm,
         'pool': {
             'class': pool_registry['pool'],
             'expand': None,
@@ -345,6 +345,11 @@ if __name__ == '__main__':
         "--dropout",
         type=float,
         default=0.25,
+    )
+    parser.add_argument(
+        '--norm',
+        type=str,
+        default='batch',
     )
 
     args = parser.parse_args()
