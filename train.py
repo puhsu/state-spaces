@@ -52,6 +52,7 @@ def train(model, optimizer, scheduler, loss_fn, dl, device, logger=None):
             logger.log({'running_loss/train': total_loss / n_objects})
             logger.log({'running_accuracy/train': accuracy / n_objects})
         pbar.set_description('Loss: {0:.3f}. Accuracy: {1:.3f}'.format(total_loss / n_objects, accuracy / n_objects))
+        break
 
     return total_loss / n_objects, accuracy / n_objects
 
@@ -71,6 +72,7 @@ def test(model, loss_fn, dl, device):
             n_objects += predictions.shape[0]
             total_loss += loss.item() * predictions.shape[0]
             accuracy += torch.sum(torch.eq(predictions, labels)).item()
+            break
 
     return total_loss / n_objects, accuracy / n_objects
 
