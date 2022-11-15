@@ -87,6 +87,7 @@ def main(args):
     else:
         device = torch.device('cpu')
     print('Using device:', device)
+    print(torch.cuda.is_available(), torch.cuda.device_count())
 
     l_max = None
     if args.dataset == 'CIFAR10':
