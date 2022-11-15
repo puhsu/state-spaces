@@ -83,11 +83,13 @@ def main(args):
     wandb.login(key=args.wandb_key)
 
     if torch.cuda.is_available():
-        device = torch.device('cuda:0')
+        if torch.cuda.device_count() > 1:
+            device = torch.device(f'cuda:{args.gpu}')
+        else:
+            device = torch.device(f'cuda:0')
     else:
         device = torch.device('cpu')
     print('Using device:', device)
-    print(torch.cuda.is_available(), torch.cuda.device_count())
 
     l_max = None
     if args.dataset == 'CIFAR10':
