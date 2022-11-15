@@ -226,7 +226,6 @@ def main(args):
         lambda step: (step + 1) / (args.num_warmup_steps + 1) if step < args.num_warmup_steps else 1.0
     )
 
-    print(model)
     print('Number of trainable parameters:', sum(param.numel() for param in model.parameters() if param.requires_grad))
     optimizer = torch.optim.AdamW(params_groups, lr=args.lr, weight_decay=args.wd)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda, last_epoch=-1)
