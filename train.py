@@ -86,6 +86,7 @@ def main(args):
         device = torch.device('cpu')
     print('Using device:', device)
 
+    l_max = None
     if args.dataset == 'CIFAR10':
         in_features, d_output = 3, 10
 
@@ -104,6 +105,9 @@ def main(args):
         dl = configure_lra(data_dir=os.path.join(args.data_path, 'lra_release', args.dataset))
         dl_train = dl.train_dataloader(batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
         dl_test = dl.val_dataloader(batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)[None]
+
+        if args.dataset == 'pathfinder32':
+            l_max = 32 * 32
     else:
         raise ValueError(f'Unknows dataset: {args.dataset}')
 
@@ -119,7 +123,7 @@ def main(args):
         'layer': {
             'class': S4,
             'd_state': args.d_state,
-            'l_max': None,
+            'l_max': l_max,
             'channels': 1,
             'bidirectional': True,
             'activation': 'gelu',
@@ -156,7 +160,7 @@ def main(args):
         'residual': {
             'class': residual_registry['R'],
         },
-        'norm': 'layer',
+        'norm': 'batch',
         'pool': {
             'class': pool_registry['pool'],
             'expand': None,
