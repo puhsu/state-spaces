@@ -118,7 +118,7 @@ def main(args):
         'transposed': False,
         'dropout': args.dropout,
         'tie_dropout': True,
-        'prenorm': False,
+        'prenorm': args.prenorm,
         'n_repeat': 1,
         'layer': {
             'class': S4,
@@ -139,10 +139,10 @@ def main(args):
             # SSKernel arguments
             'measure': 'legs',
             'rank': 1,
-            'dt_min': 0.001,
-            'dt_max': 0.1,
+            'dt_min': args.dt_min,
+            'dt_max': args.dt_max,
             'deterministic': False,
-            'lr': 0.001,
+            'lr': args.kernel_lr,
             'mode': 'nplr',
             'n_ssm': args.n_ssm,
 
@@ -350,6 +350,25 @@ if __name__ == '__main__':
         '--norm',
         type=str,
         default='batch',
+    )
+    parser.add_argument(
+        "--dt_min",
+        type=float,
+        default=0.001,
+    )
+    parser.add_argument(
+        "--dt_max",
+        type=float,
+        default=0.1,
+    )
+    parser.add_argument(
+        "--kernel_lr",
+        type=float,
+        default=0.001,
+    )
+    parser.add_argument(
+        "--prenorm",
+        action="store_true",
     )
 
     args = parser.parse_args()
