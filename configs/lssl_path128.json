@@ -9,7 +9,7 @@
     "--log-file=lssl.csv",
     "--batch-size=16",
     "--dropout=0.3",
-    "--hidden-size=128",
+    "--hidden-size=256",
     "--learning-rate=0.02",
     "--log-examples=20000",
     "--lr-drop-factor=0.5",
