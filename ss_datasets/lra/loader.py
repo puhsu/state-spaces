@@ -366,7 +366,7 @@ class ListOps(SequenceDataset):
         return dataset, tokenizer, vocab
 
 
-class PathFinderDataset(trainer.dataset.Dataset):
+class PathFinderDataset(Dataset):
     """Path Finder dataset."""
 
     # There's an empty file in the dataset
