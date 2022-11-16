@@ -211,7 +211,7 @@ if __name__ == '__main__':
         val_length = len(train_reader) - train_length
         train_reader, val_reader = random_split(train_reader, lengths=(train_length, val_length))
     else:
-        val_reader = VAL_READERS[args.dataset]
+        val_reader = VAL_READERS[args.dataset]()
 
     train_batch_size = args.batch_size
     eval_batch_size = train_batch_size * 2
