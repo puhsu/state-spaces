@@ -46,7 +46,9 @@ class FlashTransformerForClassification(Module):
     def forward(self, features: Tensor) -> Tensor:
         print(features.shape)
         transformer_input = self._features_transition(features)
+        print(transformer_input.shape)
         transformer_output = self._transformer(transformer_input, transformer_input)
+        print(transformer_output.shape)
         return self._category_transition(transformer_output)
 
 
