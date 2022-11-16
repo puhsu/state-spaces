@@ -17,7 +17,7 @@ from transformers import HfArgumentParser
 from model.s4 import S4
 from model.s4_model import S4Model
 from model.lssl import StateSpace as LSSL
-from trainer.dataset import NUM_FEATURES, get_dataloaders, DatasetArguments
+from trainer.dataset import NUM_FEATURES, get_dataloaders, DatasetArguments, Dataset
 from trainer.loops import validate, train, TrainingArguments
 
 
@@ -58,6 +58,7 @@ if __name__ == '__main__':
     run_args = {f'--{k}': str(v) for k, v in parser.parse_args().__dict__.items()}
     logger.info(f'Run arguments:\n{pprint.pformat(run_args)}')
 
+    data_args.dataset = Dataset(data_args.dataset)
     train_dataloader, val_dataloader, test_dataloader = get_dataloaders(data_args)
 
     tb_writer = SummaryWriter(comment=train_args.comment)

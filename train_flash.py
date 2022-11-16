@@ -14,7 +14,7 @@ from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from transformers import HfArgumentParser
 
-from trainer.dataset import DatasetArguments, get_dataloaders, NUM_FEATURES, NUM_CATEGORIES
+from trainer.dataset import DatasetArguments, get_dataloaders, NUM_FEATURES, NUM_CATEGORIES, Dataset
 from trainer.loops import TrainingArguments, train, validate
 
 
@@ -66,6 +66,7 @@ if __name__ == '__main__':
     run_args = {f'--{k}': str(v) for k, v in parser.parse_args().__dict__.items()}
     logger.info(f'Run arguments:\n{pprint.pformat(run_args)}')
 
+    data_args.dataset = Dataset(data_args.dataset)
     train_dataloader, val_dataloader, test_dataloader = get_dataloaders(data_args)
 
     tb_writer = SummaryWriter(comment=train_args.comment)
