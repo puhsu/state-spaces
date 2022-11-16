@@ -95,8 +95,18 @@ TEST_READERS = {
     Dataset.PATH128: lambda: PathXHandler.get_path128().dataset_test,
     Dataset.PATH256: lambda: PathXHandler.get_path256().dataset_test
 }
-NUM_FEATURES = {Dataset.CIFAR: 3}
-NUM_CATEGORIES = {Dataset.CIFAR: 10}
+NUM_FEATURES = {
+    Dataset.CIFAR: 3,
+    Dataset.PATH64: 1,
+    Dataset.PATH128: 1,
+    Dataset.PATH256: 1
+}
+NUM_CATEGORIES = {
+    Dataset.CIFAR: 10,
+    Dataset.PATH64: 2,
+    Dataset.PATH128: 2,
+    Dataset.PATH256: 2
+}
 
 
 @dataclass
