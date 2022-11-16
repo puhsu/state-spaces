@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 import torch
 from torch import Tensor
-from torch.nn import Transformer, CrossEntropyLoss, Module, Linear
+from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, Parameter, init
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from transformers import HfArgumentParser
@@ -42,14 +42,14 @@ class FlashTransformerForClassification(Module):
             batch_first=True
         )
         self._category_transition = Linear(transformer_args.hidden_size, num_categories)
+        self._cls_embedding = Parameter(torch.empty(1, 1, num_features))
+        init.xavier_uniform(self._cls_embedding)
 
     def forward(self, features: Tensor) -> Tensor:
-        print(features.shape)
-        transformer_input = self._features_transition(features)
-        print(transformer_input.shape)
+        cls_features = torch.cat([self._cls_embedding, features], dim=1)
+        transformer_input = self._features_transition(cls_features)
         transformer_output = self._transformer(transformer_input, transformer_input)
-        print(transformer_output.shape)
-        return self._category_transition(transformer_output)
+        return self._category_transition(transformer_output[:, 0, :])
 
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
