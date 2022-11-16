@@ -46,6 +46,7 @@ logger.addHandler(TqdmLoggingHandler())
 
 class Dataset(str, Enum):
     CIFAR = 'cifar'
+    PATH32 = 'path32'
     PATH64 = 'path64'
     PATH128 = 'path128'
     PATH256 = 'path256'
@@ -53,11 +54,18 @@ class Dataset(str, Enum):
 
 class PathXHandler:
 
+    path32: Optional[PathFinder] = None
     path64: Optional[PathFinder] = None
     path128: Optional[PathFinder] = None
     path256: Optional[PathFinder] = None
 
     __init__ = None
+
+    @classmethod
+    def get_path32(cls) -> PathFinder:
+        if cls.path32 is None:
+            cls.path32 = configure_lra(x=32)
+        return cls.path32
 
     @classmethod
     def get_path64(cls) -> PathFinder:
@@ -80,29 +88,34 @@ class PathXHandler:
 
 TRAIN_READERS = {
     Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=True, download=True),
+    Dataset.PATH32: lambda: PathXHandler.get_path32().dataset_train,
     Dataset.PATH64: lambda: PathXHandler.get_path64().dataset_train,
     Dataset.PATH128: lambda: PathXHandler.get_path128().dataset_train,
     Dataset.PATH256: lambda: PathXHandler.get_path256().dataset_train
 }
 VAL_READERS = {
+    Dataset.PATH32: lambda: PathXHandler.get_path32().dataset_val,
     Dataset.PATH64: lambda: PathXHandler.get_path64().dataset_val,
     Dataset.PATH128: lambda: PathXHandler.get_path128().dataset_val,
     Dataset.PATH256: lambda: PathXHandler.get_path256().dataset_val
 }
 TEST_READERS = {
     Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=False, download=True),
+    Dataset.PATH32: lambda: PathXHandler.get_path32().dataset_test,
     Dataset.PATH64: lambda: PathXHandler.get_path64().dataset_test,
     Dataset.PATH128: lambda: PathXHandler.get_path128().dataset_test,
     Dataset.PATH256: lambda: PathXHandler.get_path256().dataset_test
 }
 NUM_FEATURES = {
     Dataset.CIFAR: 3,
+    Dataset.PATH32: 1,
     Dataset.PATH64: 1,
     Dataset.PATH128: 1,
     Dataset.PATH256: 1
 }
 NUM_CATEGORIES = {
     Dataset.CIFAR: 10,
+    Dataset.PATH32: 2,
     Dataset.PATH64: 2,
     Dataset.PATH128: 2,
     Dataset.PATH256: 2
