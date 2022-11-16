@@ -23,6 +23,7 @@ class TransformerTrainingArguments:
     num_layers: int = field(default=12, metadata={'help': 'Number of layers in transformer model.'})
     num_heads: int = field(default=8, metadata={'help': 'Number of attention heads per layer.'})
     hidden_size: int = field(default=512, metadata={'help': 'Transformer hidden dims.'})
+    feedforward_size: int = field(default=2048, metadata={'help': 'Size of feedforward network in encoder.'})
     dropout: float = field(default=0.1, metadata={'help': 'Attention dropout.'})
     activation: str = field(default='relu', metadata={'help': 'relu or gelu'})
 
@@ -37,6 +38,7 @@ class FlashTransformerForClassification(Module):
             d_model=transformer_args.hidden_size,
             custom_decoder=lambda target, memory, *_, **__: memory,  # no decoder
             num_encoder_layers=transformer_args.num_layers,
+            dim_feedforward=transformer_args.feedforward_size,
             dropout=transformer_args.dropout,
             activation=transformer_args.activation,
             batch_first=True

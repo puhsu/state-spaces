@@ -5,14 +5,15 @@
   "command": "python train_flash.py",
   "args": [
     "--batch_size=32",
-    "--learning_rate=0.01",
+    "--learning_rate=1e-4",
     "--log_examples=5000",
     "--log_file=flash.csv",
     "--lr_drop_factor=0.5",
-    "--min_learning_rate=1e-04",
+    "--min_learning_rate=1e-6",
     "--num_layers=6",
-    "--num_heads=4",
+    "--num_heads=8",
     "--hidden_size=256",
+    "--feedforward_size=128",
     "--dropout=0.1",
     "--activation=relu",
     "--patience=10"
