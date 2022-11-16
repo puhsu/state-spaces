@@ -23,7 +23,7 @@ class TransformerTrainingArguments:
     num_layers: int = field(default=12, metadata={'help': 'Number of layers in transformer model.'})
     num_heads: int = field(default=8, metadata={'help': 'Number of attention heads per layer.'})
     hidden_size: int = field(default=512, metadata={'help': 'Transformer hidden dims.'})
-    dropout: int = field(default=0.1, metadata={'help': 'Attention dropout.'})
+    dropout: float = field(default=0.1, metadata={'help': 'Attention dropout.'})
     activation: str = field(default='relu', metadata={'help': 'relu or gelu'})
 
 
