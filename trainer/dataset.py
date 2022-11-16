@@ -10,7 +10,7 @@ from ss_datasets.lra.configure import configure_lra
 from ss_datasets.lra.loader import PathFinder
 
 
-class Dataset(str, Enum):
+class Dataset(Enum):
     CIFAR = 'cifar'
     PATH32 = 'path32'
     PATH64 = 'path64'
