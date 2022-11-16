@@ -255,6 +255,7 @@ def main(args):
             epoch, all_losses_train[-1], all_losses_test[-1], all_accuracies_train[-1], all_accuracies_test[-1]
         ))
         w_logger.log({
+            'epoch': epoch,
             'loss/test': all_losses_test[-1],
             'loss/train': all_losses_train[-1],
             'accuracy/test': all_accuracies_test[-1],
