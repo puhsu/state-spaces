@@ -35,22 +35,18 @@ class FlashTransformerForClassification(Module):
         self._features_transition = Linear(num_features, transformer_args.hidden_size)
         self._transformer = Transformer(
             d_model=transformer_args.hidden_size,
-            custom_decoder=lambda target, memory, *_, **__: memory,
+            custom_decoder=lambda target, memory, *_, **__: memory,  # no decoder
             num_encoder_layers=transformer_args.num_layers,
             dropout=transformer_args.dropout,
             activation=transformer_args.activation,
             batch_first=True
         )
         self._category_transition = Linear(transformer_args.hidden_size, num_categories)
-        self._cls_embedding = Parameter(torch.empty(1, 1, num_features))
-        init.xavier_uniform(self._cls_embedding)
 
     def forward(self, features: Tensor) -> Tensor:
-        batch_size, seq_length, num_features = features.shape
-        cls_features = torch.cat([self._cls_embedding.repeat(batch_size, 1, 1), features], dim=1)
-        transformer_input = self._features_transition(cls_features)
+        transformer_input = self._features_transition(features)
         transformer_output = self._transformer(transformer_input, transformer_input)
-        return self._category_transition(transformer_output[:, 0, :])
+        return self._category_transition(transformer_output.mean(dim=1))
 
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
