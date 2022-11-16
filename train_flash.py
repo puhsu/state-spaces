@@ -44,9 +44,11 @@ class FlashTransformerForClassification(Module):
         self._category_transition = Linear(transformer_args.hidden_size, num_categories)
 
     def forward(self, features: Tensor) -> Tensor:
-        bs, _, _ = features.shape
+        fake_input = object()
+        fake_input.size = features.size
+
         transformer_input = self._features_transition(features)
-        transformer_output = self._transformer(transformer_input, torch.empty((bs, 1, 1)))
+        transformer_output = self._transformer(transformer_input, fake_input)
         return self._category_transition(transformer_output)
 
 
