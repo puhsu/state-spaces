@@ -46,7 +46,8 @@ class FlashTransformerForClassification(Module):
         init.xavier_uniform(self._cls_embedding)
 
     def forward(self, features: Tensor) -> Tensor:
-        cls_features = torch.cat([self._cls_embedding, features], dim=1)
+        batch_size, seq_length, num_features = features.shape
+        cls_features = torch.cat([self._cls_embedding.repeat(batch_size, 1, 1), features], dim=1)
         transformer_input = self._features_transition(cls_features)
         transformer_output = self._transformer(transformer_input, transformer_input)
         return self._category_transition(transformer_output[:, 0, :])
