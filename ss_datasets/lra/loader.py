@@ -13,8 +13,8 @@ import torchvision
 from einops.layers.torch import Rearrange, Reduce
 from PIL import Image  # Only used for Pathfinder
 from datasets import DatasetDict, Value, load_dataset
+from torch.utils.data import Dataset
 
-import trainer.dataset
 from ss_datasets.base import default_data_path, SequenceDataset, ImageResolutionSequenceDataset
 
 
@@ -170,7 +170,7 @@ class IMDB(SequenceDataset):
     def _cache_dir_name(self):
         return f"l_max-{self.l_max}-level-{self.level}-min_freq-{self.min_freq}-append_bos-{self.append_bos}-append_eos-{self.append_eos}"
 
-class TabularDataset(trainer.dataset.Dataset):
+class TabularDataset(Dataset):
     def __init__(
         self,
         path,
