@@ -13,7 +13,6 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from train_lssm import DEVICE
 from trainer.utils import compute_metrics
 from trainer.trainer_logging import log_metrics
 
