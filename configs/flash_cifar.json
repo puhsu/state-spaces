@@ -1,0 +1,20 @@
+{
+  "output": "flash_cifar.log",
+  "config_name": "flash_cifar",
+  "memory_needed": 40,
+  "command": "python train_flash.py",
+  "args": [
+    "--batch_size=8",
+    "--learning_rate=0.01",
+    "--log_examples=20000",
+    "--log_file=flash.csv",
+    "--lr_drop_factor=0.5",
+    "--min_learning_rate=1e-04",
+    "--num_layers=12",
+    "--num_heads=8",
+    "--hidden_size=512",
+    "--dropout=0.1",
+    "--activation=relu",
+    "--patience=10"
+  ]
+}
