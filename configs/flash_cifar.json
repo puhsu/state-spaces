@@ -4,7 +4,7 @@
   "memory_needed": 40,
   "command": "python train_flash.py",
   "args": [
-    "--batch_size=8",
+    "--batch_size=32",
     "--learning_rate=0.01",
     "--log_examples=20000",
     "--log_file=flash.csv",
