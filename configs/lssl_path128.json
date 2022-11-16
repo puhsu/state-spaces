@@ -7,7 +7,7 @@
     "--dataset=path128",
     "--sequence-module=lssl",
     "--log-file=lssl.csv",
-    "--batch-size=32",
+    "--batch-size=16",
     "--dropout=0.3",
     "--hidden-size=256",
     "--learning-rate=0.02",
