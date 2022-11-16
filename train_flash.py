@@ -38,7 +38,8 @@ class FlashTransformerForClassification(Module):
             custom_decoder=lambda target, memory, *_, **__: memory,
             num_encoder_layers=transformer_args.num_layers,
             dropout=transformer_args.dropout,
-            activation=transformer_args.activation
+            activation=transformer_args.activation,
+            batch_first=True
         )
         self._category_transition = Linear(transformer_args.hidden_size, num_categories)
 
