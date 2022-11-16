@@ -14,6 +14,7 @@ from einops.layers.torch import Rearrange, Reduce
 from PIL import Image  # Only used for Pathfinder
 from datasets import DatasetDict, Value, load_dataset
 
+import trainer.dataset
 from ss_datasets.base import default_data_path, SequenceDataset, ImageResolutionSequenceDataset
 
 
@@ -169,7 +170,7 @@ class IMDB(SequenceDataset):
     def _cache_dir_name(self):
         return f"l_max-{self.l_max}-level-{self.level}-min_freq-{self.min_freq}-append_bos-{self.append_bos}-append_eos-{self.append_eos}"
 
-class TabularDataset(torch.utils.data.Dataset):
+class TabularDataset(trainer.dataset.Dataset):
     def __init__(
         self,
         path,
@@ -365,7 +366,7 @@ class ListOps(SequenceDataset):
         return dataset, tokenizer, vocab
 
 
-class PathFinderDataset(torch.utils.data.Dataset):
+class PathFinderDataset(trainer.dataset.Dataset):
     """Path Finder dataset."""
 
     # There's an empty file in the dataset
