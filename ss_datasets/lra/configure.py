@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from ss_datasets.lra.loader import PathFinder
 
 
@@ -18,6 +20,6 @@ def configure_lra(x: int = 128, data_dir: str = 'ss_datasets/lra/lra_release/') 
          [-1.],
          [-1.]]]), tensor([0]), {'rate': 1})
     """
-    pf = PathFinder(_name_='pathfinder', data_dir=Path(data_dir).join(Path(f'lra_release/pathfinder{x}/')))
+    pf = PathFinder(_name_='pathfinder', data_dir=Path(data_dir).joinpath(Path(f'lra_release/pathfinder{x}/')))
     pf.setup()
     return pf
