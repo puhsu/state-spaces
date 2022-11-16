@@ -4,7 +4,7 @@
   "memory_needed": 40,
   "command": "python train_flash.py",
   "args": [
-    "--dataset=cifar",
+    "--dataset=path32",
     "--batch_size=64",
     "--learning_rate=1e-4",
     "--log_examples=20000",
