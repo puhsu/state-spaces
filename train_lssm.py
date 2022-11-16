@@ -154,7 +154,7 @@ def validate(
     with torch.no_grad():
         total_loss = 0
 
-        for batch, labels in tqdm(dataloader, desc=f'Evaluating on {dataset_name} dataset', leave=False):
+        for batch, labels, *_ in tqdm(dataloader, desc=f'Evaluating on {dataset_name} dataset', leave=False):
             logits = model(batch.to(DEVICE))
             loss = loss_fn(logits, labels.to(DEVICE))
 
@@ -242,7 +242,7 @@ if __name__ == '__main__':
     best_metric: Optional[float] = None
     while curr_lr > args.min_learning_rate:
         n_epoch += 1
-        for batch, labels in tqdm(train_dataloder, desc=f'Training {n_epoch} epoch', leave=True):
+        for batch, labels, *_ in tqdm(train_dataloder, desc=f'Training {n_epoch} epoch', leave=True):
             model.train()
 
             optimizer.zero_grad()
