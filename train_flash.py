@@ -35,8 +35,8 @@ class FlashTransformerForClassification(Module):
         self._features_transition = Linear(num_features, transformer_args.hidden_size)
         self._transformer = Transformer(
             d_model=transformer_args.hidden_size,
-            num_decoder_layers=transformer_args.num_layers // 2,
-            num_encoder_layers=(transformer_args.num_layers // 2) + (transformer_args.num_layers % 2),
+            custom_decoder=lambda x, *_, **__: x,
+            num_encoder_layers=transformer_args.num_layers,
             dropout=transformer_args.dropout,
             activation=transformer_args.activation
         )
