@@ -53,6 +53,7 @@ class FlashTransformerForClassification(Module):
         normal_(self._input_embed.weight)
 
         self._pos_embed = PositionEmbedding(input_length, embedding_dim=transformer_args.embedding_dim, mode=PositionEmbedding.MODE_ADD)
+        self._embed_transition = Linear(transformer_args.embedding_dim, transformer_args.hidden_size)
 
         self._transformer = Transformer(
             d_model=transformer_args.hidden_size,
@@ -82,6 +83,7 @@ class FlashTransformerForClassification(Module):
         if self._pool_mode == 'cls':
             embedded_inputs = torch.cat([self._cls_embedding.view(1, 1, -1).repeat(batch_size, 1, 1), embedded_inputs], dim=1)
 
+        embedded_inputs = self._embed_transition(embedded_inputs)
         transformer_output = self._encoder_norm(self._transformer(embedded_inputs, embedded_inputs))
 
         pooled = transformer_output[:, 0] if self._pool_mode == 'cls' else transformer_output.mean(dim=1)
