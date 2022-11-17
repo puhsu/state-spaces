@@ -26,6 +26,8 @@ class SequentialCIFAR10(torch.utils.data.Dataset):
         self._grayscale = grayscale
         self._tokenize = tokenize
 
+        print(f'Loading sCIFAR with tokenize={tokenize} and grayscale={grayscale}')
+
     def __getitem__(self, idx):
         image, label = self.data[idx]
         if isinstance(image, PIL.Image.Image):

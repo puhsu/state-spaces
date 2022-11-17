@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from functools import partial
 from typing import Optional, Tuple
 
 from torch.utils.data import DataLoader, random_split
