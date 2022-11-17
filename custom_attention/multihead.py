@@ -15,8 +15,6 @@ try:
     Attention = FlashMHA
 except ImportError:
     logger.warning('Cannot import flash attention! Run `python setup.py install` in flash_attention directory!')
-    raise ImportError
-
 
     class ScaledDotProductAttention(Module):
         """

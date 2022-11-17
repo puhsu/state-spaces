@@ -1,7 +1,7 @@
 import logging
 import math
 
-from torch.nn.init import normal_
+from torch.nn.init import normal_, uniform_
 from torch_position_embedding import PositionEmbedding
 
 from custom_attention.multihead import Attention
@@ -62,13 +62,14 @@ class FlashTransformerForClassification(Module):
         super().__init__()
 
         self._pool_mode = transformer_args.pool
+        self._d_model = transformer_args.hidden_size
 
         if self._pool_mode == 'cls':
             self._cls_embedding = Parameter(torch.empty(transformer_args.embedding_dim))
-            normal_(self._cls_embedding.data)
+            uniform_(self._cls_embedding.data, -0.1, 0.1)
 
         self._input_embed = Embedding(vocab_size, transformer_args.embedding_dim)
-        normal_(self._input_embed.weight)
+        uniform_(self._input_embed.weight, -0.1, 0.1)
 
         self._pos_embed = PositionalEncoding(
             max_len=input_length,
@@ -105,7 +106,7 @@ class FlashTransformerForClassification(Module):
 
     def forward(self, input_ids: LongTensor) -> Tensor:
         batch_size, _ = input_ids.shape
-        embedded_inputs = self._pos_embed(self._input_embed(input_ids.long()))
+        embedded_inputs = self._pos_embed(self._input_embed(input_ids.long()) * math.sqrt(self.d_model))
         if self._pool_mode == 'cls':
             embedded_inputs = torch.cat([self._cls_embedding.view(1, 1, -1).repeat(batch_size, 1, 1), embedded_inputs], dim=1)
 
