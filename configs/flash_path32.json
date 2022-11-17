@@ -5,17 +5,17 @@
   "command": "python train_flash.py",
   "args": [
     "--dataset=path32",
-    "--batch_size=256",
-    "--learning_rate=0.01",
+    "--batch_size=512",
+    "--learning_rate=1e-3",
     "--log_examples=20000",
     "--log_file=flash.csv",
     "--lr_drop_factor=0.5",
     "--min_learning_rate=1e-6",
     "--num_layers=4",
-    "--num_heads=8",
-    "--hidden_size=128",
-    "--feedforward_size=128",
-    "--dropout=0.1",
+    "--num_heads=4",
+    "--hidden_size=32",
+    "--feedforward_size=32",
+    "--dropout=0.2",
     "--patience=10"
   ]
 }

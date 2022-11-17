@@ -30,6 +30,7 @@ class TrainingArguments:
     min_learning_rate: float = field(default=1e-7, metadata={'help': 'Training stops once lr goes under this value.'})
     target_metric: str = field(default='accuracy', metadata={'help': 'Set target metric for validation and choosing best model.'})
     max_grad_norm: float = field(default=2.0, metadata={'help': 'Clip grad norm to this value'})
+    clip_grads: bool = field(default=False, metadata={'help': 'If True, will clip grad norm'})
 
     comment: str = field(default='LSSM', metadata={'help': 'Tensorboard comment.'})
     log_examples: int = field(default=10000, metadata={'help': 'Log metrics every X examples seen.'})
