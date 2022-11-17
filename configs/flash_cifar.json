@@ -14,7 +14,7 @@
     "--num_layers=12",
     "--num_heads=8",
     "--hidden_size=512",
-    "--feedforward_size=1024",
+    "--feedforward_size=512",
     "--dropout=0.1",
     "--patience=10"
   ]
