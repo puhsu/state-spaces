@@ -84,7 +84,7 @@ if __name__ == '__main__':
     tb_writer = SummaryWriter(comment=train_args.comment)
 
     model = FlashTransformerForClassification(model_args, NUM_FEATURES[data_args.dataset], NUM_CATEGORIES[data_args.dataset]).to(DEVICE)
-    optimizer = AdamW(params=model.parameters(), lr=train_args.learning_rate)
+    optimizer = AdamW(params=model.parameters(), lr=train_args.learning_rate, weight_decay=0.0)
     loss_fn = CrossEntropyLoss()
 
     model = train(
