@@ -73,13 +73,26 @@ class FlashAttention(nn.Module):
 
 class FlashMHA(nn.Module):
 
-    def __init__(self, embed_dim, num_heads, bias=True, batch_first=True, attention_dropout=0.0,
-                 causal=False, device=None, dtype=None, **kwargs) -> None:
+    def __init__(
+            self,
+            embed_dim,
+            num_heads,
+            bias=True,
+            batch_first=True,
+            dropout=0.0,
+            causal=False,
+            device=None,
+            dtype=None,
+            **_
+    ) -> None:
         assert batch_first
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
         self.embed_dim = embed_dim
         self.causal = causal
+
+        self._qkv_same_embed_dim = False
+        self.batch_first = True
 
         self.num_heads = num_heads
         assert self.embed_dim % num_heads == 0, "self.kdim must be divisible by num_heads"
@@ -87,10 +100,10 @@ class FlashMHA(nn.Module):
         assert self.head_dim % 8 == 0 and self.head_dim <= 128, "Only support head_dim <= 128 and divisible by 8"
 
         self.Wqkv = nn.Linear(embed_dim, 3 * embed_dim, bias=bias, **factory_kwargs)
-        self.inner_attn = FlashAttention(attention_dropout=attention_dropout, **factory_kwargs)
+        self.inner_attn = FlashAttention(attention_dropout=dropout, **factory_kwargs)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias, **factory_kwargs)
 
-    def forward(self, x, key_padding_mask=None, need_weights=False):
+    def forward(self, x, *_, key_padding_mask=None, need_weights=False, **__):
         """x: (batch, seqlen, hidden_dim) (where hidden_dim = num heads * head dim)
         key_padding_mask: bool tensor of shape (batch, seqlen)
         """
