@@ -16,7 +16,7 @@
     "--num_heads=8",
     "--hidden_size=64",
     "--feedforward_size=128",
-    "--dropout=0.2",
+    "--dropout=0.3",
     "--patience=10"
   ]
 }
