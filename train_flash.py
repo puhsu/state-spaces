@@ -71,11 +71,7 @@ class FlashTransformerForClassification(Module):
         self._input_embed = Embedding(vocab_size, transformer_args.embedding_dim)
         uniform_(self._input_embed.weight, -0.1, 0.1)
 
-        self._pos_embed = PositionalEncoding(
-            max_len=input_length,
-            embed_dim=transformer_args.embedding_dim,
-            requires_grad=not transformer_args.freeze_positional_embedding
-        )
+        self._dropout = Dropout(transformer_args.dropout)
 
         self._transformer = Transformer(
             d_model=transformer_args.hidden_size,
@@ -104,11 +100,10 @@ class FlashTransformerForClassification(Module):
     def forward(self, input_ids: LongTensor) -> Tensor:
         batch_size, _ = input_ids.shape
         embedded_inputs = self._input_embed(input_ids)
-        # embedded_inputs = self._pos_embed(embedded_inputs * math.sqrt(self._d_model))
         if self._pool_mode == 'cls':
             embedded_inputs = torch.cat([self._cls_embedding.view(1, 1, -1).repeat(batch_size, 1, 1), embedded_inputs], dim=1)
 
-        embedded_inputs = embedded_inputs
+        embedded_inputs = self._dropout(embedded_inputs)
         transformer_output = self._transformer(embedded_inputs, embedded_inputs)
 
         pooled = transformer_output[:, 0] if self._pool_mode == 'cls' else transformer_output.mean(dim=1)
