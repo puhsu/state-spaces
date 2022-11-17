@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 """https://github.com/sooftware/attentions/blob/master/attentions.py"""
 
 try:
-    from flash_attn import FlashAttention  # see flash-attention/flash_attn/flash_attention.py
+    from flash_attn.flash_attention import FlashAttention  # see flash-attention/flash_attn/flash_attention.py
     Attention = FlashAttention
 except ImportError:
     logger.warning('Cannot import flash attention! Run `python setup.py install` in flash_attention directory!')
