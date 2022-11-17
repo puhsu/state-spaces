@@ -67,7 +67,7 @@ class FlashTransformerForClassification(Module):
         )
 
     def forward(self, input_ids: LongTensor) -> Tensor:
-        transformer_input = self._input_embed(input_ids)
+        transformer_input = self._input_embed(input_ids.long())
         transformer_output = self._encoder_norm(self._transformer(transformer_input, transformer_input))
         return self._head(transformer_output.mean(dim=1))
 
