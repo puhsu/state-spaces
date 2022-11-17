@@ -29,6 +29,7 @@ class TrainingArguments:
     lr_drop_factor: float = field(default=0.5, metadata={'help': 'LR drop factor when patience goes to zero.'})
     min_learning_rate: float = field(default=1e-7, metadata={'help': 'Training stops once lr goes under this value.'})
     target_metric: str = field(default='accuracy', metadata={'help': 'Set target metric for validation and choosing best model.'})
+    max_grad_norm: float = field(default=2.0, metadata={'help': 'Clip grad norm to this value'})
 
     comment: str = field(default='LSSM', metadata={'help': 'Tensorboard comment.'})
     log_examples: int = field(default=10000, metadata={'help': 'Log metrics every X examples seen.'})
@@ -53,8 +54,9 @@ def validate(
         total_loss = 0
 
         for batch, labels, *_ in tqdm(dataloader, desc=f'Evaluating on {dataset_name} dataset', leave=False):
-            logits = model(batch.to(DEVICE))
-            loss = loss_fn(logits, labels.to(DEVICE))
+            with torch.cuda.amp.autocast():
+                logits = model(batch.to(DEVICE))
+                loss = loss_fn(logits, labels.to(DEVICE))
 
             total_loss += loss.item() * len(logits)
 
@@ -91,6 +93,9 @@ def train(
     log_loss = 0
     examples_from_last_log = 0
 
+    model.train()
+    scaler = torch.cuda.amp.GradScaler()
+
     best_model_state = model.state_dict()
     best_metric: Optional[float] = None
     while curr_lr > args.min_learning_rate:
@@ -99,11 +104,15 @@ def train(
             model.train()
 
             optimizer.zero_grad()
-            logits = model(batch.to(DEVICE))
-            loss = loss_fn(logits, labels.to(DEVICE))
+            with torch.cuda.amp.autocast():
+                logits = model(batch.to(DEVICE))
+                loss = loss_fn(logits, labels.to(DEVICE))
 
-            loss.backward()
-            optimizer.step()
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+            scaler.step(optimizer)
+            scaler.update()
 
             examples_seen += len(batch)
 
