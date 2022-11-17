@@ -3,8 +3,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 import torch
-from torch import Tensor, Module, softmax
-from torch.nn import Linear
+from torch import Tensor, softmax
+from torch.nn import Linear, Module
 
 logger = logging.getLogger(__name__)
 
