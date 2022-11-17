@@ -432,7 +432,7 @@ class PathFinder(ImageResolutionSequenceDataset):
         return {
             "resolution": 32,
             "sequential": True,
-            "tokenize": False,
+            "tokenize": True,
             "pool": 1,
             "val_split": 0.1,
             "test_split": 0.1,
