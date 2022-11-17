@@ -53,8 +53,7 @@ class PositionalEncoding(Module):
         self.pe = Parameter(pe, requires_grad=requires_grad)
 
     def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
-        return self.dropout(x)
+        return x + self.pe[:x.size(0), :]
 
 
 class FlashTransformerForClassification(Module):
