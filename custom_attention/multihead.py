@@ -96,6 +96,7 @@ class MultiHeadAttention(Module):
         self.query_proj = Linear(d_model, self.d_head * num_heads)
         self.key_proj = Linear(d_model, self.d_head * num_heads)
         self.value_proj = Linear(d_model, self.d_head * num_heads)
+        self.batch_first = True
 
     def forward(
             self,
