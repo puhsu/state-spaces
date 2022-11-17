@@ -13,19 +13,21 @@ import regex
 
 import wandb
 
+import numpy as np
+import matplotlib.pyplot as plt
+
 import torch
 import torch.utils.data
 
 import tqdm.autonotebook as tqdm
 
 from sequence_models.s4 import S4
-from sequence_models.utils import PassthroughSequential
 from sequence_models.pool import registry as pool_registry
 from sequence_models.residual import registry as residual_registry
-from sequence_models.model import SequenceModel, SequenceDecoder, SequenceModelWrapper
+from sequence_models.model import SequenceModel, SequenceEncoder, SequenceDecoder, SequenceModelWrapper
 
-from ss_datasets import SequentialCIFAR10
 from ss_datasets.lra.configure import configure_lra
+from ss_datasets import SequentialCIFAR10, SequentialMNIST
 
 
 class HashDict(dict):
@@ -41,8 +43,8 @@ def train(model, optimizer, scheduler, loss_fn, dl, device, logger=None):
         optimizer.zero_grad()
 
         images = images.to(device=device)
-        labels = labels.to(device=device, dtype=torch.long)
-        y = model(images)
+        labels = labels.to(device=device, dtype=torch.long).flatten()
+        y = model(images).flatten(0, -2)
         predictions = torch.argmax(y, dim=1)
 
         loss = loss_fn(y, labels)
@@ -69,8 +71,8 @@ def test(model, loss_fn, dl, device):
         n_objects, total_loss, accuracy = 0, 0.0, 0
         for images, labels, *_ in tqdm.tqdm(dl, total=len(dl), leave=False):
             images = images.to(device=device)
-            labels = labels.to(device=device, dtype=torch.long)
-            y = model(images)
+            labels = labels.to(device=device, dtype=torch.long).flatten()
+            y = model(images).flatten(0, -2)
             predictions = torch.argmax(y, dim=1)
 
             loss = loss_fn(y, labels)
@@ -80,6 +82,23 @@ def test(model, loss_fn, dl, device):
             accuracy += torch.sum(torch.eq(predictions, labels)).item()
 
     return total_loss / n_objects, accuracy / n_objects
+
+
+@torch.no_grad()
+def generate(model, x, l_max):
+    model.eval()
+
+    state = None
+    xs = [x.cpu()]
+    for idx in range(l_max - 1):
+        x, state = model.step(x, state)
+        logits = torch.softmax(x, dim=-1)
+        x = torch.argmax(logits, dim=-1)
+        xs.append(x.cpu())
+        x = x.to(torch.float32) / 255.0
+
+    xs = torch.stack(xs, dim=1)
+    return xs
 
 
 def main(args):
@@ -98,10 +117,8 @@ def main(args):
 
     l_max = None
     if args.dataset == 'CIFAR10':
-        in_features, d_output = 3, 10
-
-        ds_test = SequentialCIFAR10(args.data_path, train=False, download=True)
-        ds_train = SequentialCIFAR10(args.data_path, train=True, download=False)
+        ds_test = SequentialCIFAR10(args.data_path, train=False, download=True, task=args.task)
+        ds_train = SequentialCIFAR10(args.data_path, train=True, download=False, task=args.task)
 
         dl_test = torch.utils.data.DataLoader(
             ds_test, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False
@@ -109,6 +126,20 @@ def main(args):
         dl_train = torch.utils.data.DataLoader(
             ds_train, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True
         )
+
+        in_features, d_output = ds_train.in_features, ds_train.d_output
+    elif args.dataset == 'MNIST':
+        ds_test = SequentialMNIST(args.data_path, train=False, download=True, task=args.task)
+        ds_train = SequentialMNIST(args.data_path, train=True, download=False, task=args.task)
+
+        dl_test = torch.utils.data.DataLoader(
+            ds_test, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False
+        )
+        dl_train = torch.utils.data.DataLoader(
+            ds_train, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True
+        )
+
+        in_features, d_output = ds_train.in_features, ds_train.d_output
     elif args.dataset.startswith('pathfinder'):
         in_features, d_output = 1, 2
 
@@ -118,6 +149,10 @@ def main(args):
 
         if args.dataset == 'pathfinder32':
             l_max = 32 * 32
+        elif args.dataset == 'pathfinder64':
+            l_max = 64 * 64
+        elif args.dataset == 'pathfinder128':
+            l_max = 128 * 128
     else:
         raise ValueError(f'Unknows dataset: {args.dataset}')
 
@@ -181,17 +216,18 @@ def main(args):
     }
     encoder_kwargs = {
         'in_features': in_features,
-        'out_features': model_kwargs['d_model'],
+        'd_model': model_kwargs['d_model'],
     }
     decoder_kwargs = {
-        'l_output': 0,
+        'l_output': None if args.task == 'density_estimation' else 0,
         'd_model': model_kwargs['d_model'],
         'd_output': d_output,
+        'mode': 'last' if args.task == 'density_estimation' else 'pool'
     }
 
     model = SequenceModelWrapper(
-        PassthroughSequential(torch.nn.Linear(**encoder_kwargs)),
-        PassthroughSequential(SequenceDecoder(**decoder_kwargs)),
+        SequenceEncoder(**encoder_kwargs),
+        SequenceDecoder(**decoder_kwargs),
         SequenceModel(**model_kwargs),
     ).to(device)
 
@@ -261,6 +297,14 @@ def main(args):
             'accuracy/test': all_accuracies_test[-1],
             'accuracy/train': all_accuracies_train[-1]
         })
+
+        images = generate(
+            model, torch.zeros([1, in_features], device=device), l_max=32 * 32
+        ).reshape(1, 32, 32, -1).numpy()
+        images = (255.0 * images).astype(np.uint8)
+        print(images, images.shape)
+        plt.imshow(images[0])
+        plt.savefig(f'./{log_dir}/sample_{epoch}.jpeg')
 
 
 if __name__ == '__main__':
@@ -379,6 +423,12 @@ if __name__ == '__main__':
     parser.add_argument(
         "--prenorm",
         action="store_true",
+    )
+
+    parser.add_argument(
+        '--task',
+        type=str,
+        default='classification',
     )
 
     args = parser.parse_args()

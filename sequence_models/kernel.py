@@ -543,6 +543,9 @@ class SSKernelNPLR(OptimModule):
         else:
             new_state = self._step_state(u, state)
         y = self.output_contraction(self.dC, new_state)
+        # Note: There possibly was some bug because y had shape [B, 2, H],
+        #    where second dimension imposed by _c2r conversion
+        y = y[:, 0:1]
         return y.real, new_state
 
 

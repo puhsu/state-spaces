@@ -122,6 +122,7 @@ def PassthroughSequential(*modules):
         def step(self, x, **kwargs):
             for layer in self:
                 x, kwargs = wrap_kwargs(layer.step)(x, **kwargs)
+
             return x, kwargs
 
     if len(modules) == 0:

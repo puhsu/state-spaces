@@ -131,13 +131,15 @@ class SequenceResidualBlock(SequenceModule):
 
         # Residual
         # NOTE this would not work with concat residual function (catformer)
-        if self.residual is not None: y = self.residual(x, y, transposed=False)
+        if self.residual is not None:
+            y = self.residual(x, y, transposed=False)
 
         # Post-norm
         if self.norm is not None and not self.prenorm:
             y = self.norm.step(y)
 
         # Pool
-        if self.pool is not None: y, _ = self.pool(y)
+        if self.pool is not None:
+            y, _ = self.pool(y)
 
         return y, state

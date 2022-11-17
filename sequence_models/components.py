@@ -319,4 +319,4 @@ class Normalization(nn.Module):
         if self.transposed: x = x.unsqueeze(-1)
         x = self.forward(x)
         if self.transposed: x = x.squeeze(-1)
-        return
+        return x

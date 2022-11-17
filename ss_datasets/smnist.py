@@ -6,10 +6,10 @@ import torchvision
 
 import torch.utils.data
 
-from torchvision.datasets import CIFAR10
+from torchvision.datasets import MNIST
 
 
-class SequentialCIFAR10(torch.utils.data.Dataset):
+class SequentialMNIST(torch.utils.data.Dataset):
     def __init__(
             self,
             root: str,
@@ -20,10 +20,10 @@ class SequentialCIFAR10(torch.utils.data.Dataset):
             task=None
     ):
         self.task = task
-        self.data = CIFAR10(root, train, transform, target_transform, download)
+        self.data = MNIST(root, train, transform, target_transform, download)
 
-        self.in_features = 3
-        self.d_output = (3, 256) if self.task == 'density_estimation' else 10
+        self.in_features = 1
+        self.d_output = (1, 256) if self.task == 'density_estimation' else 10
 
     def __getitem__(self, idx):
         image, label = self.data[idx]

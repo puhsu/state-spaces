@@ -5,6 +5,8 @@ The SequenceModel class implements a generic (batch, length, d_input) -> (batch,
 
 from functools import partial
 
+import numpy as np
+
 import torch
 import torch.nn as nn
 from einops import rearrange
@@ -121,6 +123,10 @@ class SequenceModel(SequenceModule):
     def default_state(self, *batch_shape, device=None):
         return [layer.default_state(*batch_shape, device=device) for layer in self.layers]
 
+    def setup_step(self, **kwargs):
+        for layer in self.layers:
+            layer.layer.setup_step(**kwargs)
+
     def step(self, x, state, **kwargs):
         # Apply layers
         prev_states = [None] * len(self.layers) if state is None else state
@@ -133,6 +139,7 @@ class SequenceModel(SequenceModule):
 
         return x, next_states
 
+
 class SequenceModelWrapper(torch.nn.Module):
     def __init__(self, encoder, decoder, model):
         super().__init__()
@@ -141,14 +148,34 @@ class SequenceModelWrapper(torch.nn.Module):
         self.model = model
 
     def forward(self, x):
-        # print(x.shape)
-        x, *_ = self.encoder(x)
-        # print(x.shape)
+        x = self.encoder(x)
         x, *_ = self.model(x)
-        # print(x.shape)
-        x, *_ = self.decoder(x)
-        # print(x.shape)
+        x = self.decoder(x)
         return x
+
+    def step(self, x, state=None):
+        if state is None:
+            self.model.setup_step()
+            state = self.model.default_state(len(x))
+
+        x, state = self.encoder.step(x, state=state)
+        x, state = self.model.step(x, state=state)
+        x, state = self.decoder.step(x, state=state)
+
+        return x, state
+
+
+class SequenceEncoder(torch.nn.Module):
+    def __init__(self, in_features, d_model):
+        super().__init__()
+
+        self.linear = torch.nn.Linear(in_features, d_model)
+
+    def forward(self, x):
+        return self.linear(x)
+
+    def step(self, x, state=None):
+        return self.linear(x), state
 
 
 class SequenceDecoder(torch.nn.Module):
@@ -157,7 +184,8 @@ class SequenceDecoder(torch.nn.Module):
     ):
         super().__init__()
 
-        self.output_transform = torch.nn.Identity() if d_output is None else torch.nn.Linear(d_model, d_output)
+        self.d_output = d_output
+        self.output_transform = torch.nn.Identity() if d_output is None else torch.nn.Linear(d_model, np.prod(d_output))
 
         if l_output is None:
             self.l_output = None
@@ -251,8 +279,16 @@ class SequenceDecoder(torch.nn.Module):
 
         x = self.output_transform(x)
 
+        if isinstance(self.d_output, (list, tuple)):
+            x = x.view(*x.shape[:-1], *self.d_output)
+
         return x
 
     def step(self, x, state=None):
         # Ignore all length logic
-        return self.output_transform(x)
+        x = self.output_transform(x)
+
+        if isinstance(self.d_output, (list, tuple)):
+            x = x.view(*x.shape[:-1], *self.d_output)
+
+        return x, state
