@@ -31,6 +31,7 @@ class TrainingArguments:
     target_metric: str = field(default='accuracy', metadata={'help': 'Set target metric for validation and choosing best model.'})
     max_grad_norm: float = field(default=2.0, metadata={'help': 'Clip grad norm to this value'})
     clip_grads: bool = field(default=False, metadata={'help': 'If True, will clip grad norm'})
+    warmup_epochs: float = field(default=1.0, metadata={'help': 'Number of epochs with linear LR increase'})
 
     comment: str = field(default='LSSM', metadata={'help': 'Tensorboard comment.'})
     log_examples: int = field(default=10000, metadata={'help': 'Log metrics every X examples seen.'})
@@ -83,23 +84,32 @@ def train(
         optimizer: Optimizer,
         train_dataloader: DataLoader,
         val_dataloader: DataLoader,
+        batch_size: int,
         args: TrainingArguments,
         tb_writer: Optional[SummaryWriter] = None
 ) -> _Model:
-    curr_lr = args.learning_rate
+
+    curr_lr = 0
+    start_lr = args.learning_rate
     curr_patience = args.patience
+
+    def update_lr() -> None:
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = curr_lr
 
     n_epoch = 0
     examples_seen = 0
     log_loss = 0
     examples_from_last_log = 0
 
+    warmup_examples = int(batch_size * len(train_dataloader) * args.warmup_epochs)
+
     model.train()
     scaler = torch.cuda.amp.GradScaler()
 
     best_model_state = model.state_dict()
     best_metric: Optional[float] = None
-    while curr_lr > args.min_learning_rate:
+    while curr_lr > args.min_learning_rate or examples_seen < warmup_examples:
         n_epoch += 1
         for batch, labels, *_ in tqdm(train_dataloader, desc=f'Training {n_epoch} epoch', leave=True):
             model.train()
@@ -121,7 +131,12 @@ def train(
             log_loss += loss.item() * len(batch)
             examples_from_last_log += len(batch)
 
-            if examples_from_last_log > args.log_examples:
+            if examples_seen < warmup_examples:
+                curr_lr = (examples_seen / warmup_examples) * start_lr
+                update_lr()
+
+            # do not validate during warmup
+            if examples_from_last_log > args.log_examples and examples_seen > warmup_examples:
                 metrics = validate(model, val_dataloader, loss_fn, dataset_name='dev')
                 if tb_writer is not None:
                     log_metrics(tb_writer, metrics, examples_seen=examples_seen, prefix='dev')
@@ -148,8 +163,7 @@ def train(
                     # drop lr
                     model.load_state_dict(best_model_state)
                     curr_lr *= args.lr_drop_factor
-                    for param_group in optimizer.param_groups:
-                        param_group['lr'] = curr_lr
+                    update_lr()
                     curr_patience = args.patience
 
     # EVALUATION

@@ -87,7 +87,12 @@ if __name__ == '__main__':
     optimizer = AdamW(params=model.parameters(), lr=train_args.learning_rate)
     loss_fn = CrossEntropyLoss()
 
-    model = train(model, loss_fn, optimizer, train_dataloader, val_dataloader, train_args, tb_writer=tb_writer)
+    model = train(
+        model, loss_fn, optimizer, train_dataloader, val_dataloader,
+        args=train_args,
+        tb_writer=tb_writer,
+        batch_size=data_args.batch_size
+    )
 
     val_metrics = validate(model, val_dataloader, loss_fn, dataset_name='dev')
     test_metrics = validate(model, test_dataloader, loss_fn, dataset_name='test')
