@@ -114,6 +114,7 @@ class DatasetArguments:
     dataset: Dataset = field(default=Dataset.CIFAR, metadata={'help': 'Dataset to train on.'})
     split: float = field(default=0.8, metadata={'help': 'Train/val split of official train dataset if no val dataset is available.'})
     batch_size: int = field(default=256, metadata={'help': 'Train batch size (eval batch size is doubled).'})
+    num_workers: int = field(default=4, metadata={'help': 'Number of workers for dataloader'})
 
 
 def get_dataloaders(args: DatasetArguments) -> Tuple[DataLoader, DataLoader, DataLoader]:
@@ -130,8 +131,8 @@ def get_dataloaders(args: DatasetArguments) -> Tuple[DataLoader, DataLoader, Dat
     train_batch_size = args.batch_size
     eval_batch_size = train_batch_size * 2
 
-    train_dataloder = DataLoader(train_reader, shuffle=True, batch_size=train_batch_size)
-    val_dataloder = DataLoader(val_reader, shuffle=False, batch_size=eval_batch_size)
-    test_dataloader = DataLoader(test_reader, shuffle=False, batch_size=eval_batch_size)
+    train_dataloder = DataLoader(train_reader, shuffle=True, batch_size=train_batch_size, num_workers=args.num_workers)
+    val_dataloder = DataLoader(val_reader, shuffle=False, batch_size=eval_batch_size, num_workers=args.num_workers)
+    test_dataloader = DataLoader(test_reader, shuffle=False, batch_size=eval_batch_size, num_workers=args.num_workers)
 
     return train_dataloder, val_dataloder, test_dataloader
