@@ -56,7 +56,7 @@ class PathXHandler:
 
 
 TRAIN_READERS = {
-    Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=True, download=True, grayscale=True),
+    Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=True, download=True, grayscale=True, tokenize=TOKENIZE_DATASETS),
     Dataset.PATH32: lambda: PathXHandler.get_path32().dataset_train,
     Dataset.PATH64: lambda: PathXHandler.get_path64().dataset_train,
     Dataset.PATH128: lambda: PathXHandler.get_path128().dataset_train,
@@ -69,7 +69,7 @@ VAL_READERS = {
     Dataset.PATH256: lambda: PathXHandler.get_path256().dataset_val
 }
 TEST_READERS = {
-    Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=False, download=True),
+    Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=False, download=True, grayscale=True, tokenize=TOKENIZE_DATASETS),
     Dataset.PATH32: lambda: PathXHandler.get_path32().dataset_test,
     Dataset.PATH64: lambda: PathXHandler.get_path64().dataset_test,
     Dataset.PATH128: lambda: PathXHandler.get_path128().dataset_test,
