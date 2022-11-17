@@ -30,25 +30,25 @@ class PathXHandler:
     @classmethod
     def get_path32(cls) -> PathFinder:
         if cls.path32 is None:
-            cls.path32 = configure_lra(x=32)
+            cls.path32 = configure_lra(x=32, tokenize=True)
         return cls.path32
 
     @classmethod
     def get_path64(cls) -> PathFinder:
         if cls.path64 is None:
-            cls.path64 = configure_lra(x=64)
+            cls.path64 = configure_lra(x=64, tokenize=True)
         return cls.path64
 
     @classmethod
     def get_path128(cls) -> PathFinder:
         if cls.path128 is None:
-            cls.path128 = configure_lra(x=128)
+            cls.path128 = configure_lra(x=128, tokenize=True)
         return cls.path128
 
     @classmethod
     def get_path256(cls) -> PathFinder:
         if cls.path256 is None:
-            cls.path256 = configure_lra(x=256)
+            cls.path256 = configure_lra(x=256, tokenize=True)
         return cls.path256
 
 

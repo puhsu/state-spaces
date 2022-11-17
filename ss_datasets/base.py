@@ -127,8 +127,9 @@ class SequenceDataset(DefaultCollateMixin):
         super().__init_subclass__(**kwargs)
         cls.registry[cls._name_] = cls
 
-    def __init__(self, _name_, data_dir=None, **dataset_cfg):
+    def __init__(self, _name_, data_dir=None, tokenize: bool = False, **dataset_cfg):
         assert _name_ == self._name_
+        self.tokenize = tokenize
         self.data_dir = Path(data_dir).absolute() if data_dir is not None else None
 
         # Add all arguments to self
