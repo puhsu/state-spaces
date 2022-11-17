@@ -297,14 +297,14 @@ def main(args):
             'accuracy/test': all_accuracies_test[-1],
             'accuracy/train': all_accuracies_train[-1]
         })
-
-        images = generate(
-            model, torch.zeros([1, in_features], device=device), l_max=32 * 32
-        ).reshape(1, 32, 32, -1).numpy()
-        images = (255.0 * images).astype(np.uint8)
-        print(images, images.shape)
-        plt.imshow(images[0])
-        plt.savefig(f'./{log_dir}/sample_{epoch}.jpeg')
+        if args.task == 'density_estimation':
+            images = generate(
+                model, torch.zeros([1, in_features], device=device), l_max=32 * 32
+            ).reshape(1, 32, 32, -1).numpy()
+            images = (255.0 * images).astype(np.uint8)
+            print(images, images.shape)
+            plt.imshow(images[0])
+            plt.savefig(f'./{log_dir}/sample_{epoch}.jpeg')
 
 
 if __name__ == '__main__':
