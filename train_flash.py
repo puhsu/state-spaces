@@ -1,6 +1,7 @@
 import logging
 
 from torch.nn.init import normal_
+from torch_position_embedding import PositionEmbedding
 
 from custom_attention.multihead import Attention
 from trainer.trainer_logging import setup_logging, dump_metrics
@@ -14,7 +15,7 @@ from dataclasses import dataclass, field
 import torch
 from torch import Tensor, LongTensor
 from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, Parameter, init, TransformerEncoderLayer, Sequential, ReLU, LayerNorm, \
-    Embedding
+    Embedding, Dropout
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from transformers import HfArgumentParser
@@ -38,11 +39,15 @@ set_tokenize(True)
 
 class FlashTransformerForClassification(Module):
 
-    def __init__(self, transformer_args: TransformerTrainingArguments, num_categories: int, vocab_size: int):
+    def __init__(self, transformer_args: TransformerTrainingArguments, num_categories: int, vocab_size: int, input_length: int):
         super().__init__()
 
         self._input_embed = Embedding(vocab_size, transformer_args.embedding_dim)
         normal_(self._input_embed.weight)
+
+        self._pos_embed = PositionEmbedding(input_length, embedding_dim=transformer_args.embedding_dim, mode=PositionEmbedding.MODE_ADD)
+
+        self._embed_dropout = Dropout(transformer_args.dropout)
 
         self._transformer = Transformer(
             d_model=transformer_args.hidden_size,
@@ -67,7 +72,7 @@ class FlashTransformerForClassification(Module):
         )
 
     def forward(self, input_ids: LongTensor) -> Tensor:
-        transformer_input = self._input_embed(input_ids.long())
+        transformer_input = self._embed_dropout(self._pos_embed(self._input_embed(input_ids.long())))
         transformer_output = self._encoder_norm(self._transformer(transformer_input, transformer_input))
         return self._head(transformer_output.mean(dim=1))
 
