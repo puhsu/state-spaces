@@ -6,7 +6,7 @@
   "args": [
     "--dataset=cifar",
     "--batch_size=256",
-    "--learning_rate=1e-3",
+    "--learning_rate=5e-4",
     "--log_examples=20000",
     "--log_file=flash.csv",
     "--lr_drop_factor=0.5",
@@ -14,7 +14,7 @@
     "--pool=cls",
     "--num_layers=1",
     "--num_heads=8",
-    "--hidden_size=128",
+    "--hidden_size=64",
     "--embedding_dim=128",
     "--freeze_positional_embedding=True",
     "--feedforward_size=128",
