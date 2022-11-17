@@ -41,7 +41,9 @@ class SequentialCIFAR10(torch.utils.data.Dataset):
                 image = image.transpose(0, 2).reshape(-1, image.shape[0])
 
         if self._tokenize:
-            image = (image * 255).to(torch.uint8)
+            image = (image * 255).long()
+
+        assert torch.all((image >= 0) & (image <= 255))
 
         # Convert to shape [WIDTH * HEIGHT, N_CHANNELS]
         return image, label

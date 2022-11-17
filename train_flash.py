@@ -14,13 +14,13 @@ from dataclasses import dataclass, field
 
 import torch
 from torch import Tensor, LongTensor
-from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, Parameter, init, TransformerEncoderLayer, Sequential, ReLU, LayerNorm, \
+from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, TransformerEncoderLayer, Sequential, ReLU, LayerNorm, \
     Embedding, Dropout
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from transformers import HfArgumentParser
 
-from trainer.dataset import DatasetArguments, get_dataloaders, NUM_FEATURES, NUM_CATEGORIES, Dataset, VOCAB_SIZE, set_tokenize
+from trainer.dataset import DatasetArguments, get_dataloaders, NUM_CATEGORIES, Dataset, VOCAB_SIZE, set_tokenize, MAX_LENGTH
 from trainer.loops import TrainingArguments, train, validate
 
 
@@ -97,7 +97,12 @@ if __name__ == '__main__':
 
     tb_writer = SummaryWriter(comment=train_args.comment)
 
-    model = FlashTransformerForClassification(model_args, NUM_CATEGORIES[data_args.dataset], VOCAB_SIZE[data_args.dataset]).to(DEVICE)
+    model = FlashTransformerForClassification(
+        model_args,
+        NUM_CATEGORIES[data_args.dataset],
+        VOCAB_SIZE[data_args.dataset],
+        MAX_LENGTH[data_args.dataset]
+    ).to(DEVICE)
     optimizer = AdamW(params=model.parameters(), lr=train_args.learning_rate, weight_decay=0.0)
     loss_fn = CrossEntropyLoss()
 

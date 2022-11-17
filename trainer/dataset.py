@@ -100,6 +100,13 @@ VOCAB_SIZE = {
     Dataset.PATH128: 256,
     Dataset.PATH256: 256
 }
+MAX_LENGTH = {
+    Dataset.CIFAR: 32 * 32,
+    Dataset.PATH32: 32 * 32,
+    Dataset.PATH64: 64 * 64,
+    Dataset.PATH128: 128 * 128,
+    Dataset.PATH256: 256 * 256
+}
 
 
 @dataclass
