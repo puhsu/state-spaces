@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 import torch
 from torch import Tensor
-from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, Parameter, init, TransformerEncoderLayer
+from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, Parameter, init, TransformerEncoderLayer, Sequential, ReLU
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from transformers import HfArgumentParser
@@ -48,12 +48,16 @@ class FlashTransformerForClassification(Module):
             # swap for flash attention
             layer: TransformerEncoderLayer
             layer.self_attn = Attention(transformer_args.hidden_size, transformer_args.num_heads, dropout=transformer_args.dropout)
-        self._category_transition = Linear(transformer_args.hidden_size, num_categories)
+        self._head = Sequential(
+            Linear(transformer_args.hidden_size, transformer_args.feedforward_size),
+            ReLU(inplace=True),
+            Linear(transformer_args.feedforward_size, num_categories),
+        )
 
     def forward(self, features: Tensor) -> Tensor:
         transformer_input = self._features_transition(features)
         transformer_output = self._transformer(transformer_input, transformer_input)
-        return self._category_transition(transformer_output.mean(dim=1))
+        return self._head(transformer_output.mean(dim=1))
 
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
