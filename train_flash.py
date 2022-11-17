@@ -1,6 +1,6 @@
 import logging
 
-from custom_attention.multihead import MultiHeadAttention
+from custom_attention.multihead import Attention
 from trainer.trainer_logging import setup_logging, dump_metrics
 
 setup_logging()
@@ -49,7 +49,7 @@ class FlashTransformerForClassification(Module):
         for layer in self._transformer.encoder.layers:
             # swap for flash attention
             layer: TransformerEncoderLayer
-            layer.self_attn = MultiHeadAttention(d_model=transformer_args.hidden_size, num_heads=transformer_args.num_heads)
+            layer.self_attn = Attention(d_model=transformer_args.hidden_size, num_heads=transformer_args.num_heads)
         self._category_transition = Linear(transformer_args.hidden_size, num_categories)
 
     def forward(self, features: Tensor) -> Tensor:
