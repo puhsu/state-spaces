@@ -5,7 +5,7 @@
   "command": "python train_flash.py",
   "args": [
     "--dataset=cifar",
-    "--batch_size=128",
+    "--batch_size=1024",
     "--learning_rate=0.01",
     "--log_examples=20000",
     "--log_file=flash.csv",
