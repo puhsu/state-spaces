@@ -102,7 +102,7 @@ class MultiHeadAttention(Module):
             query: Tensor,
             key: Tensor,
             value: Tensor,
-            mask: Optional[Tensor] = None
+            attn_mask: Optional[Tensor] = None
     ) -> Tuple[Tensor, Tensor]:
         batch_size = value.size(0)
 
@@ -114,10 +114,10 @@ class MultiHeadAttention(Module):
         key = key.permute(2, 0, 1, 3).contiguous().view(batch_size * self.num_heads, -1, self.d_head)      # BNxK_LENxD
         value = value.permute(2, 0, 1, 3).contiguous().view(batch_size * self.num_heads, -1, self.d_head)  # BNxV_LENxD
 
-        if mask is not None:
-            mask = mask.unsqueeze(1).repeat(1, self.num_heads, 1, 1)  # BxNxQ_LENxK_LEN
+        if attn_mask is not None:
+            attn_mask = attn_mask.unsqueeze(1).repeat(1, self.num_heads, 1, 1)  # BxNxQ_LENxK_LEN
 
-        context, attn = self.scaled_dot_attn(query, key, value, mask)
+        context, attn = self.scaled_dot_attn(query, key, value, attn_mask)
 
         context = context.view(self.num_heads, batch_size, -1, self.d_head)
         context = context.permute(1, 2, 0, 3).contiguous().view(batch_size, -1, self.num_heads * self.d_head)  # BxTxND

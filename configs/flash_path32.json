@@ -1,6 +1,6 @@
 {
-  "output": "flash_cifar.log",
-  "config_name": "flash_cifar",
+  "output": "flash_path32.log",
+  "config_name": "flash_path32",
   "memory_needed": 40,
   "command": "python train_flash.py",
   "args": [
