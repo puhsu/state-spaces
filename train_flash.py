@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 import torch
 from torch import Tensor, LongTensor
 from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, TransformerEncoderLayer, Sequential, ReLU, LayerNorm, \
-    Embedding, Dropout
+    Embedding, Parameter
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from transformers import HfArgumentParser
@@ -26,6 +26,7 @@ from trainer.loops import TrainingArguments, train, validate
 
 @dataclass
 class TransformerTrainingArguments:
+    pool: str = field(default='mean', metadata={'help': 'mean or cls'})
     embedding_dim: int = field(default=128, metadata={'help': 'Embedding dims'})
     num_layers: int = field(default=12, metadata={'help': 'Number of layers in transformer model.'})
     num_heads: int = field(default=8, metadata={'help': 'Number of attention heads per layer.'})
@@ -42,12 +43,16 @@ class FlashTransformerForClassification(Module):
     def __init__(self, transformer_args: TransformerTrainingArguments, num_categories: int, vocab_size: int, input_length: int):
         super().__init__()
 
+        self._pool_mode = transformer_args.pool
+
+        if self._pool_mode == 'cls':
+            self._cls_embedding = Parameter(torch.empty(transformer_args.embedding_dim))
+            normal_(self._cls_embedding.data)
+
         self._input_embed = Embedding(vocab_size, transformer_args.embedding_dim)
         normal_(self._input_embed.weight)
 
         self._pos_embed = PositionEmbedding(input_length, embedding_dim=transformer_args.embedding_dim, mode=PositionEmbedding.MODE_ADD)
-
-        self._embed_dropout = Dropout(transformer_args.dropout)
 
         self._transformer = Transformer(
             d_model=transformer_args.hidden_size,
@@ -72,9 +77,14 @@ class FlashTransformerForClassification(Module):
         )
 
     def forward(self, input_ids: LongTensor) -> Tensor:
-        transformer_input = self._embed_dropout(self._pos_embed(self._input_embed(input_ids.long())))
-        transformer_output = self._encoder_norm(self._transformer(transformer_input, transformer_input))
-        return self._head(transformer_output.mean(dim=1))
+        embedded_inputs = self._pos_embed(self._input_embed(input_ids.long()))
+        if self._pool_mode == 'cls':
+            embedded_inputs = torch.cat([self._cls_embedding, embedded_inputs], dim=1)
+
+        transformer_output = self._encoder_norm(self._transformer(embedded_inputs, embedded_inputs))
+
+        pooled = transformer_output[:, 0] if self._pool_mode == 'cls' else transformer_output.mean(dim=1)
+        return self._head(pooled)
 
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
