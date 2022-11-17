@@ -12,6 +12,11 @@ from ss_datasets.lra.loader import PathFinder
 TOKENIZE_DATASETS = False
 
 
+def set_tokenize(value: bool) -> None:
+    global TOKENIZE_DATASETS
+    TOKENIZE_DATASETS = value
+
+
 class Dataset(Enum):
     CIFAR = 'cifar'
     PATH32 = 'path32'

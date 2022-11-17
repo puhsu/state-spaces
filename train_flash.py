@@ -19,7 +19,7 @@ from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from transformers import HfArgumentParser
 
-from trainer.dataset import DatasetArguments, get_dataloaders, NUM_FEATURES, NUM_CATEGORIES, Dataset, VOCAB_SIZE
+from trainer.dataset import DatasetArguments, get_dataloaders, NUM_FEATURES, NUM_CATEGORIES, Dataset, VOCAB_SIZE, set_tokenize
 from trainer.loops import TrainingArguments, train, validate
 
 
@@ -33,7 +33,7 @@ class TransformerTrainingArguments:
     dropout: float = field(default=0.1, metadata={'help': 'Attention dropout.'})
 
 
-TOKENIZE_DATASETS = True
+set_tokenize(True)
 
 
 class FlashTransformerForClassification(Module):
