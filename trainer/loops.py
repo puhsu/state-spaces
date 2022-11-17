@@ -110,8 +110,9 @@ def train(
                 loss = loss_fn(logits, labels.to(DEVICE))
 
             scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+            if args.clip_grads:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
             scaler.step(optimizer)
             scaler.update()
 
