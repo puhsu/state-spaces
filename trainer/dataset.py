@@ -10,6 +10,9 @@ from ss_datasets.lra.configure import configure_lra
 from ss_datasets.lra.loader import PathFinder
 
 
+TOKENIZE_DATASETS = False
+
+
 class Dataset(Enum):
     CIFAR = 'cifar'
     PATH32 = 'path32'
@@ -30,30 +33,30 @@ class PathXHandler:
     @classmethod
     def get_path32(cls) -> PathFinder:
         if cls.path32 is None:
-            cls.path32 = configure_lra(x=32, tokenize=True)
+            cls.path32 = configure_lra(x=32, tokenize=TOKENIZE_DATASETS)
         return cls.path32
 
     @classmethod
     def get_path64(cls) -> PathFinder:
         if cls.path64 is None:
-            cls.path64 = configure_lra(x=64, tokenize=True)
+            cls.path64 = configure_lra(x=64, tokenize=TOKENIZE_DATASETS)
         return cls.path64
 
     @classmethod
     def get_path128(cls) -> PathFinder:
         if cls.path128 is None:
-            cls.path128 = configure_lra(x=128, tokenize=True)
+            cls.path128 = configure_lra(x=128, tokenize=TOKENIZE_DATASETS)
         return cls.path128
 
     @classmethod
     def get_path256(cls) -> PathFinder:
         if cls.path256 is None:
-            cls.path256 = configure_lra(x=256, tokenize=True)
+            cls.path256 = configure_lra(x=256, tokenize=TOKENIZE_DATASETS)
         return cls.path256
 
 
 TRAIN_READERS = {
-    Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=True, download=True),
+    Dataset.CIFAR: partial(SequentialCIFAR10, root='cifar', train=True, download=True, grayscale=True),
     Dataset.PATH32: lambda: PathXHandler.get_path32().dataset_train,
     Dataset.PATH64: lambda: PathXHandler.get_path64().dataset_train,
     Dataset.PATH128: lambda: PathXHandler.get_path128().dataset_train,
@@ -85,6 +88,13 @@ NUM_CATEGORIES = {
     Dataset.PATH64: 2,
     Dataset.PATH128: 2,
     Dataset.PATH256: 2
+}
+VOCAB_SIZE = {
+    Dataset.CIFAR: 256,
+    Dataset.PATH32: 256,
+    Dataset.PATH64: 256,
+    Dataset.PATH128: 256,
+    Dataset.PATH256: 256
 }
 
 

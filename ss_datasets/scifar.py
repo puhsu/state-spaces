@@ -8,6 +8,8 @@ import torch.utils.data
 
 from torchvision.datasets import CIFAR10
 
+from skimage import rgb2gray
+
 
 class SequentialCIFAR10(torch.utils.data.Dataset):
     def __init__(
@@ -16,13 +18,17 @@ class SequentialCIFAR10(torch.utils.data.Dataset):
             train: bool = True,
             transform: Callable = None,
             target_transform: Callable = None,
-            download: bool = False
+            download: bool = False,
+            grayscale: bool = False
     ):
         self.data = CIFAR10(root, train, transform, target_transform, download)
+        self._grayscale = grayscale
 
     def __getitem__(self, idx):
         image, label = self.data[idx]
         if isinstance(image, PIL.Image.Image):
+            if self._grayscale:
+                image = rgb2gray(image)
             image = torchvision.transforms.ToTensor()(image)
 
         # Convert to shape [WIDTH * HEIGHT, N_CHANNELS]

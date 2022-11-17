@@ -131,7 +131,7 @@ def train(
             log_loss += loss.item() * len(batch)
             examples_from_last_log += len(batch)
 
-            if examples_seen < warmup_examples:
+            if examples_seen <= warmup_examples:
                 curr_lr = (examples_seen / warmup_examples) * start_lr
                 update_lr()
 
