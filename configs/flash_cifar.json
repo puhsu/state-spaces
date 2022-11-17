@@ -17,8 +17,8 @@
     "--hidden_size=256",
     "--embedding_dim=256",
     "--feedforward_size=512",
-    "--dropout=0.5",
-    "--attention_dropout=0.5",
+    "--dropout=0.3",
+    "--attention_dropout=0.2",
     "--patience=10"
   ]
 }

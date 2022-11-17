@@ -97,7 +97,6 @@ class FlashTransformerForClassification(Module):
                 dropout=transformer_args.attention_dropout
             )
 
-        self._encoder_norm = LayerNorm(transformer_args.hidden_size)
         self._head = Sequential(
             Linear(transformer_args.hidden_size, transformer_args.feedforward_size),
             ReLU(inplace=True),
@@ -111,7 +110,7 @@ class FlashTransformerForClassification(Module):
             embedded_inputs = torch.cat([self._cls_embedding.view(1, 1, -1).repeat(batch_size, 1, 1), embedded_inputs], dim=1)
 
         embedded_inputs = self._embed_transition(self._embed_dropout(embedded_inputs))
-        transformer_output = self._encoder_norm(self._transformer(embedded_inputs, embedded_inputs))
+        transformer_output = self._transformer(embedded_inputs, embedded_inputs)
 
         pooled = transformer_output[:, 0] if self._pool_mode == 'cls' else transformer_output.mean(dim=1)
         return self._head(pooled)
