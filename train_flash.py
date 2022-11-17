@@ -27,7 +27,6 @@ class TransformerTrainingArguments:
     hidden_size: int = field(default=512, metadata={'help': 'Transformer hidden dims.'})
     feedforward_size: int = field(default=2048, metadata={'help': 'Size of feedforward network in encoder.'})
     dropout: float = field(default=0.1, metadata={'help': 'Attention dropout.'})
-    activation: str = field(default='relu', metadata={'help': 'relu or gelu'})
 
 
 class FlashTransformerForClassification(Module):
@@ -43,13 +42,12 @@ class FlashTransformerForClassification(Module):
             num_encoder_layers=transformer_args.num_layers,
             dim_feedforward=transformer_args.feedforward_size,
             dropout=transformer_args.dropout,
-            activation=transformer_args.activation,
             batch_first=True
         )
         for layer in self._transformer.encoder.layers:
             # swap for flash attention
             layer: TransformerEncoderLayer
-            layer.self_attn = Attention(d_model=transformer_args.hidden_size, num_heads=transformer_args.num_heads)
+            layer.self_attn = Attention(transformer_args.hidden_size, transformer_args.num_heads, dropout=transformer_args.dropout)
         self._category_transition = Linear(transformer_args.hidden_size, num_categories)
 
     def forward(self, features: Tensor) -> Tensor:
