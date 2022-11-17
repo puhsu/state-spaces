@@ -106,7 +106,7 @@ class FlashTransformerForClassification(Module):
 
     def forward(self, input_ids: LongTensor) -> Tensor:
         batch_size, _ = input_ids.shape
-        embedded_inputs = self._pos_embed(self._input_embed(input_ids.long()) * math.sqrt(self.d_model))
+        embedded_inputs = self._pos_embed(self._input_embed(input_ids.long()) * math.sqrt(self._d_model))
         if self._pool_mode == 'cls':
             embedded_inputs = torch.cat([self._cls_embedding.view(1, 1, -1).repeat(batch_size, 1, 1), embedded_inputs], dim=1)
 
