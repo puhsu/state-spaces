@@ -13,10 +13,10 @@
     "--min_learning_rate=1e-6",
     "--pool=cls",
     "--num_layers=8",
-    "--num_heads=2",
-    "--hidden_size=16",
+    "--num_heads=8",
+    "--hidden_size=128",
     "--embedding_dim=32",
-    "--feedforward_size=32",
+    "--feedforward_size=64",
     "--dropout=0.1",
     "--attention_dropout=0.1",
     "--patience=10"
