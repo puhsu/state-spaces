@@ -16,6 +16,7 @@
     "--num_heads=8",
     "--hidden_size=128",
     "--embedding_dim=128",
+    "--freeze_positional_embedding=True",
     "--feedforward_size=128",
     "--dropout=0.1",
     "--attention_dropout=0.1",
