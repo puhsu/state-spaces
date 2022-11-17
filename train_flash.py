@@ -1,4 +1,5 @@
 import logging
+import math
 
 from torch.nn.init import normal_
 from torch_position_embedding import PositionEmbedding
@@ -13,7 +14,7 @@ import pprint
 from dataclasses import dataclass, field
 
 import torch
-from torch import Tensor, LongTensor
+from torch import Tensor, LongTensor, zeros, arange
 from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, TransformerEncoderLayer, Sequential, ReLU, LayerNorm, \
     Embedding, Parameter, Dropout
 from torch.optim import AdamW
@@ -28,14 +29,32 @@ from trainer.loops import TrainingArguments, train, validate
 class TransformerTrainingArguments:
     pool: str = field(default='mean', metadata={'help': 'mean or cls'})
     embedding_dim: int = field(default=128, metadata={'help': 'Embedding dims'})
+    freeze_positional_embedding: bool = field(default=False, metadata={'help': 'Freeze pos'})
     num_layers: int = field(default=12, metadata={'help': 'Number of layers in transformer model.'})
     num_heads: int = field(default=8, metadata={'help': 'Number of attention heads per layer.'})
     hidden_size: int = field(default=512, metadata={'help': 'Transformer hidden dims.'})
     feedforward_size: int = field(default=2048, metadata={'help': 'Size of feedforward network in encoder.'})
-    dropout: float = field(default=0.1, metadata={'help': 'Attention dropout.'})
+    dropout: float = field(default=0.3, metadata={'help': 'Embedding dropout.'})
+    attention_dropout: float = field(default=0.2, metadata={'help': 'Attention dropout'})
 
 
 set_tokenize(True)
+
+
+class PositionalEncoding(Module):
+    def __init__(self, embed_dim: int, max_len: int, requires_grad: bool):
+        super().__init__()
+        pe = zeros(max_len, embed_dim)
+        position = arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(arange(0, embed_dim, 2).float() * (-math.log(10000.0) / embed_dim))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        self.pe = Parameter(pe, requires_grad=requires_grad)
+
+    def forward(self, x):
+        x = x + self.pe[:x.size(0), :]
+        return self.dropout(x)
 
 
 class FlashTransformerForClassification(Module):
@@ -52,7 +71,11 @@ class FlashTransformerForClassification(Module):
         self._input_embed = Embedding(vocab_size, transformer_args.embedding_dim)
         normal_(self._input_embed.weight)
 
-        self._pos_embed = PositionEmbedding(input_length, embedding_dim=transformer_args.embedding_dim, mode=PositionEmbedding.MODE_ADD)
+        self._pos_embed = PositionalEncoding(
+            max_len=input_length,
+            embed_dim=transformer_args.embedding_dim,
+            requires_grad=not transformer_args.freeze_positional_embedding
+        )
         self._embed_transition = Linear(transformer_args.embedding_dim, transformer_args.hidden_size)
         self._embed_dropout = Dropout(transformer_args.dropout)
 
@@ -69,7 +92,10 @@ class FlashTransformerForClassification(Module):
         for layer in self._transformer.encoder.layers:
             # swap for flash attention
             layer: TransformerEncoderLayer
-            layer.self_attn = Attention(transformer_args.hidden_size, transformer_args.num_heads, dropout=transformer_args.dropout)
+            layer.self_attn = Attention(
+                transformer_args.hidden_size, transformer_args.num_heads,
+                dropout=transformer_args.attention_dropout
+            )
 
         self._encoder_norm = LayerNorm(transformer_args.hidden_size)
         self._head = Sequential(

@@ -14,10 +14,12 @@
     "--pool=mean",
     "--num_layers=4",
     "--num_heads=4",
-    "--hidden_size=128",
-    "--embedding_dim=64",
-    "--feedforward_size=128",
-    "--dropout=0.1",
+    "--hidden_size=16",
+    "--embedding_dim=32",
+    "--freeze_positional_embedding=True",
+    "--feedforward_size=32",
+    "--dropout=0.2",
+    "--attention_dropout=0.1",
     "--patience=10"
   ]
 }
