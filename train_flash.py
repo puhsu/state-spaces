@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 import torch
 from torch import Tensor
-from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, Parameter, init, TransformerEncoderLayer, Sequential, ReLU
+from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, Parameter, init, TransformerEncoderLayer, Sequential, ReLU, LayerNorm
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from transformers import HfArgumentParser
@@ -42,12 +42,15 @@ class FlashTransformerForClassification(Module):
             num_encoder_layers=transformer_args.num_layers,
             dim_feedforward=transformer_args.feedforward_size,
             dropout=transformer_args.dropout,
-            batch_first=True
+            batch_first=True,
+            norm_first=True
         )
         for layer in self._transformer.encoder.layers:
             # swap for flash attention
             layer: TransformerEncoderLayer
             layer.self_attn = Attention(transformer_args.hidden_size, transformer_args.num_heads, dropout=transformer_args.dropout)
+
+        self._encoder_norm = LayerNorm(transformer_args.hidden_size)
         self._head = Sequential(
             Linear(transformer_args.hidden_size, transformer_args.feedforward_size),
             ReLU(inplace=True),
@@ -56,7 +59,7 @@ class FlashTransformerForClassification(Module):
 
     def forward(self, features: Tensor) -> Tensor:
         transformer_input = self._features_transition(features)
-        transformer_output = self._transformer(transformer_input, transformer_input)
+        transformer_output = self._encoder_norm(self._transformer(transformer_input, transformer_input))
         return self._head(transformer_output.mean(dim=1))
 
 

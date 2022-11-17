@@ -126,7 +126,7 @@ def train(
                 if tb_writer is not None:
                     log_metrics(tb_writer, metrics, examples_seen=examples_seen, prefix='dev')
                     log_metrics(
-                        tb_writer, {'lr': curr_lr, 'loss': log_loss / examples_from_last_log},
+                        tb_writer, {'lr': curr_lr, 'loss': log_loss / examples_from_last_log, 'epoch': n_epoch},
                         examples_seen=examples_seen,
                         prefix='train',
                     )
