@@ -102,7 +102,8 @@ class MultiHeadAttention(Module):
             query: Tensor,
             key: Tensor,
             value: Tensor,
-            attn_mask: Optional[Tensor] = None
+            attn_mask: Optional[Tensor] = None,
+            **_
     ) -> Tuple[Tensor, Tensor]:
         batch_size = value.size(0)
 
