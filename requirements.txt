@@ -19,3 +19,8 @@ torchtext
 datasets
 wandb
 transformers
+
+regex
+setuptools
+Pillow
+scikit-image

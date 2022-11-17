@@ -8,7 +8,7 @@ import torch.utils.data
 
 from torchvision.datasets import CIFAR10
 
-from skimage import rgb2gray
+from skimage.color import rgb2gray
 
 
 class SequentialCIFAR10(torch.utils.data.Dataset):
