@@ -29,7 +29,6 @@ from trainer.loops import TrainingArguments, train, validate
 class TransformerTrainingArguments:
     pool: str = field(default='mean', metadata={'help': 'mean or cls'})
     embedding_dim: int = field(default=128, metadata={'help': 'Embedding dims'})
-    freeze_positional_embedding: bool = field(default=False, metadata={'help': 'Freeze pos'})
     num_layers: int = field(default=12, metadata={'help': 'Number of layers in transformer model.'})
     num_heads: int = field(default=8, metadata={'help': 'Number of attention heads per layer.'})
     hidden_size: int = field(default=512, metadata={'help': 'Transformer hidden dims.'})
@@ -39,21 +38,6 @@ class TransformerTrainingArguments:
 
 
 set_tokenize(True)
-
-
-class PositionalEncoding(Module):
-    def __init__(self, embed_dim: int, max_len: int, requires_grad: bool):
-        super().__init__()
-        pe = zeros(max_len, embed_dim)
-        position = arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(arange(0, embed_dim, 2).float() * (-math.log(10000.0) / embed_dim))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        self.pe = Parameter(pe, requires_grad=requires_grad)
-
-    def forward(self, x):
-        return x + self.pe[:x.size(0), :]
 
 
 class FlashTransformerForClassification(Module):
