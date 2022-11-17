@@ -97,7 +97,7 @@ class MultiHeadAttention(Module):
         self.key_proj = Linear(d_model, self.d_head * num_heads)
         self.value_proj = Linear(d_model, self.d_head * num_heads)
         self.batch_first = True
-        self._qkv_same_embed_dim = True
+        self._qkv_same_embed_dim = False
 
     def forward(
             self,
