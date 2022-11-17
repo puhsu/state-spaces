@@ -1,4 +1,6 @@
 import logging
+
+from custom_attention.multihead import MultiHeadAttention
 from trainer.trainer_logging import setup_logging, dump_metrics
 
 setup_logging()
@@ -9,7 +11,7 @@ from dataclasses import dataclass, field
 
 import torch
 from torch import Tensor
-from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, Parameter, init
+from torch.nn import Transformer, CrossEntropyLoss, Module, Linear, Parameter, init, TransformerEncoderLayer
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from transformers import HfArgumentParser
@@ -37,12 +39,17 @@ class FlashTransformerForClassification(Module):
         self._transformer = Transformer(
             d_model=transformer_args.hidden_size,
             custom_decoder=lambda target, memory, *_, **__: memory,  # no decoder
+            nhead=transformer_args.num_heads,
             num_encoder_layers=transformer_args.num_layers,
             dim_feedforward=transformer_args.feedforward_size,
             dropout=transformer_args.dropout,
             activation=transformer_args.activation,
             batch_first=True
         )
+        for layer in self._transformer.encoder.layers:
+            # swap for flash attention
+            layer: TransformerEncoderLayer
+            layer.self_attn = MultiHeadAttention(d_model=transformer_args.hidden_size, num_heads=transformer_args.num_heads)
         self._category_transition = Linear(transformer_args.hidden_size, num_categories)
 
     def forward(self, features: Tensor) -> Tensor:
