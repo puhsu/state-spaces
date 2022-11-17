@@ -16,7 +16,6 @@
     "--hidden_size=256",
     "--feedforward_size=512",
     "--dropout=0.1",
-    "--activation=relu",
     "--patience=10"
   ]
 }
